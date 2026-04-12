@@ -6,6 +6,9 @@
 #include "GameFramework/Actor.h"
 #include "item.generated.h"
 
+UENUM()
+enum class EItemState : int8{ EIS_Dropped,EIS_Equipped };
+
 UCLASS()
 class TEST_API Aitem : public AActor
 {
@@ -33,8 +36,13 @@ protected:
 	virtual void ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float Amplitude = 50.0f; // 浮动的高度范围
+	float Amplitude = 1.5f; // 浮动的高度范围
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float TimeConstant = 2.0f; // 浮动的速度频率
+	float TimeConstant = 4.0f; // 浮动的速度频率
+
+	UPROPERTY(BlueprintReadOnly)
+	EItemState ItemState = EItemState::EIS_Dropped;
+
+	float RunningTime = 0.f;
 };

@@ -9,6 +9,7 @@ void AWeapon::Equip(USceneComponent* Parent, FName SocketName)
 {
 	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
 	ItemMesh->AttachToComponent(Parent, AttachmentRules, SocketName);
+	ItemState = EItemState::EIS_Equipped;
 }
 
 void AWeapon::ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

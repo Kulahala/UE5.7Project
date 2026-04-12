@@ -75,15 +75,22 @@ void AMyCharacter::Equip()
 	{
 		OverlapWeapon->Equip(GetMesh(), FName("hand_rSocket"));
 		CharacterState = ECharacterState::ECS_OneHandEquipped;
+
 	}
 }
 
 void AMyCharacter::Attack()
 {
-	if ((CharacterState != ECharacterState::ECS_Unequipped )&& (ActionState == EActionState::EAS_UnOccupied))
+	if (CanAttack())
 	{
+		ActionState = EActionState::EAS_Attacking;
 		PlayAttackMontage();
 	}
+}
+
+bool AMyCharacter::CanAttack() const
+{
+	return ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped;
 }
 
 void AMyCharacter::PlayAttackMontage() const
@@ -108,6 +115,8 @@ void AMyCharacter::PlayAttackMontage() const
 		AnimInstance->Montage_JumpToSection(SectionName, AttackMontage);
 	}
 }
+
+
 
 // Called every frame
 void AMyCharacter::Tick(float DeltaTime)

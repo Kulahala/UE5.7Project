@@ -16,7 +16,6 @@ void USlashAnimInstance::NativeInitializeAnimation()
 	{
 		CharacterMovement = MyCharacter->GetCharacterMovement();
 	}
-
 }
 
 void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
@@ -39,7 +38,17 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		IsFalling = CharacterMovement->IsFalling();
 
 		ZSpeed = CharacterMovement->Velocity.Z;
+		if (MyCharacter)
+		{
+			CharacterState = MyCharacter->GetCharacterState();
+		}
+	}
+}
 
-		CharacterState = MyCharacter->GetCharacterState();
+void USlashAnimInstance::AnimNotify_AttackEnd() const
+{
+	if (MyCharacter)
+	{
+		MyCharacter->SetActionState(EActionState::EAS_UnOccupied);
 	}
 }

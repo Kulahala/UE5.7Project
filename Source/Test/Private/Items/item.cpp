@@ -8,7 +8,7 @@
 // Sets default values
 Aitem::Aitem()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
@@ -24,7 +24,7 @@ void Aitem::BeginPlay()
 }
 
 void Aitem::ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex)
+                           int32 OtherBodyIndex)
 {
 	AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor);
 	if (SlashCharacter)
@@ -33,7 +33,8 @@ void Aitem::ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 	}
 }
 
-void Aitem::ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void Aitem::ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                        int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor);
 
@@ -46,6 +47,11 @@ void Aitem::ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherA
 // Called every frame
 void Aitem::Tick(float DeltaTime)
 {
-	
-}
+	Super::Tick(DeltaTime);
+	RunningTime += DeltaTime;
 
+	if (ItemState == EItemState::EIS_Dropped)
+	{
+		AddActorWorldOffset(FVector(0.f, 0.f, Amplitude * FMath::Sin(RunningTime * TimeConstant)));
+	}
+}

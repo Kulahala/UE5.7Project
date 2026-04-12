@@ -43,4 +43,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = Movement)
 	float IdleTime;
+
+	UFUNCTION(BlueprintCallable)
+	FORCEINLINE void AnimNotify_AttackEnd() const;
+
+
 };

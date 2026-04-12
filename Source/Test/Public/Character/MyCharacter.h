@@ -48,7 +48,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly,Category=Montages)
 	UAnimMontage* AttackMontage;
 
-
+	bool CanAttack() const;
 
 private:
 	UPROPERTY(VisibleInstanceOnly)
@@ -56,6 +56,7 @@ private:
 
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
+	UPROPERTY(BlueprintReadWrite,meta=(AllowPrivateAccess="true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;
 
 public:
@@ -63,4 +64,6 @@ public:
 	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
 
 	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
+
+	FORCEINLINE void SetActionState(EActionState NewState) { ActionState = NewState; }
 };
