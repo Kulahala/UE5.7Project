@@ -11,7 +11,6 @@ class Aitem;
 class USpringArmComponent;
 class UCameraComponent;
 
-
 UCLASS()
 class TEST_API AMyCharacter : public ACharacter
 {
@@ -19,21 +18,13 @@ class TEST_API AMyCharacter : public ACharacter
 
 public:
 	AMyCharacter();
-
 	virtual void Tick(float DeltaTime) override;
 
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	void Equip();
+	void Attack();
 
 protected:
 	virtual void BeginPlay() override;
-
-	//移动回调函数
-	void MoveForward(float Value);
-	void Turn(float Value);
-	void LookUp(float Value);
-	void MoveRight(float Value);
-	void Equip();
-	void Attack();
 
 	UPROPERTY(VisibleAnywhere)
 	UCameraComponent* Camera;
@@ -42,10 +33,10 @@ protected:
 	USpringArmComponent* SpringArm;
 
 	//播放攻击动画
-	void PlayAttackMontage()const;
+	void PlayAttackMontage() const;
 
 	//攻击动画蒙太奇
-	UPROPERTY(EditDefaultsOnly,Category=Montages)
+	UPROPERTY(EditDefaultsOnly, Category = Montages)
 	UAnimMontage* AttackMontage;
 
 	bool CanAttack() const;
@@ -56,14 +47,13 @@ private:
 
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
-	UPROPERTY(BlueprintReadWrite,meta=(AllowPrivateAccess="true"))
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;
 
 public:
 	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
 	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
-
 	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
-
 	FORCEINLINE void SetActionState(EActionState NewState) { ActionState = NewState; }
+	FORCEINLINE EActionState GetActionState() const { return ActionState; }
 };

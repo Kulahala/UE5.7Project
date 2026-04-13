@@ -1,15 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Character/MyCharacter.h"
-
 #include "Camera/CameraComponent.h"
 #include "Character/SlashAniminstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Items/Weapon/Weapon.h"
 
-// Sets default values
 AMyCharacter::AMyCharacter()
 {
 	bUseControllerRotationPitch = false;
@@ -29,58 +26,27 @@ AMyCharacter::AMyCharacter()
 	Camera->SetupAttachment(SpringArm);
 }
 
-// Called when the game starts or when spawned
 void AMyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-void AMyCharacter::MoveForward(float Value)
+void AMyCharacter::Tick(float DeltaTime)
 {
-	if (ActionState == EActionState::EAS_Attacking) return;
-	if (Controller && Value != 0 && !(GetCharacterMovement()->IsFalling()))
-	{
-		const FRotator ControlRotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, ControlRotation.Yaw, 0);
-
-		const FVector Forward = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-		AddMovementInput(Forward, Value);
-	}
+	Super::Tick(DeltaTime);
 }
 
-void AMyCharacter::Turn(float Value)
-{
-	AddControllerYawInput(Value);
-}
-
-void AMyCharacter::LookUp(float Value)
-{
-	AddControllerPitchInput(Value);
-}
-
-void AMyCharacter::MoveRight(float Value)
-{
-	if (ActionState == EActionState::EAS_Attacking) return;
-	if (Controller && Value != 0 && !(GetCharacterMovement()->IsFalling()))
-	{
-		const FRotator ControlRotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, ControlRotation.Yaw, 0);
-
-		const FVector RightHand = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-		AddMovementInput(RightHand, Value);
-	}
-}
-
+// 供 Controller 调用的装备逻辑
 void AMyCharacter::Equip()
 {
 	if (AWeapon* OverlapWeapon = dynamic_cast<AWeapon*>(OverLapItem))
 	{
 		OverlapWeapon->Equip(GetMesh(), FName("hand_rSocket"));
 		CharacterState = ECharacterState::ECS_OneHandEquipped;
-
 	}
 }
 
+// 供 Controller 调用的攻击逻辑
 void AMyCharacter::Attack()
 {
 	if (CanAttack())
@@ -105,36 +71,10 @@ void AMyCharacter::PlayAttackMontage() const
 		FName SectionName = FName();
 		switch (Section)
 		{
-		case 1:
-			SectionName = FName("Attack1");
-			break;
-		case 2:
-			SectionName = FName("Attack2");
-			break;
-		default:
-			break;
+		case 1: SectionName = FName("Attack1"); break;
+		case 2: SectionName = FName("Attack2"); break;
+		default: break;
 		}
 		AnimInstance->Montage_JumpToSection(SectionName, AttackMontage);
 	}
-}
-
-
-
-// Called every frame
-void AMyCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-// Called to bind functionality to input
-void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AMyCharacter::MoveForward);
-	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AMyCharacter::Turn);
-	PlayerInputComponent->BindAxis(TEXT("Lookup"), this, &AMyCharacter::LookUp);
-	PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AMyCharacter::MoveRight);
-	PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &AMyCharacter::Jump);
-	PlayerInputComponent->BindAction(TEXT("Equip"), IE_Pressed, this, &AMyCharacter::Equip);
-	PlayerInputComponent->BindAction(TEXT("Attack"), IE_Pressed, this, &AMyCharacter::Attack);
 }
