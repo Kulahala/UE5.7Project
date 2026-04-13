@@ -37,6 +37,7 @@ void AMyCharacter::BeginPlay()
 
 void AMyCharacter::MoveForward(float Value)
 {
+	if (ActionState == EActionState::EAS_Attacking) return;
 	if (Controller && Value != 0 && !(GetCharacterMovement()->IsFalling()))
 	{
 		const FRotator ControlRotation = Controller->GetControlRotation();
@@ -59,6 +60,7 @@ void AMyCharacter::LookUp(float Value)
 
 void AMyCharacter::MoveRight(float Value)
 {
+	if (ActionState == EActionState::EAS_Attacking) return;
 	if (Controller && Value != 0 && !(GetCharacterMovement()->IsFalling()))
 	{
 		const FRotator ControlRotation = Controller->GetControlRotation();

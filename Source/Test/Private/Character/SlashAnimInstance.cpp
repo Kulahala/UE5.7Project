@@ -22,7 +22,7 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
-	if (GroundSpeed == 0)
+	if (FMath::IsNearlyZero(GroundSpeed))
 	{
 		IdleTime += DeltaSeconds;
 	}
@@ -31,18 +31,15 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		IdleTime = 0;
 	}
 
-	if (CharacterMovement)
-	{
-		GroundSpeed = CharacterMovement->Velocity.Size2D();
+	if (!CharacterMovement)return;
+	const FVector Velocity = CharacterMovement->Velocity;
+	GroundSpeed = Velocity.Size2D();
 
-		IsFalling = CharacterMovement->IsFalling();
+	IsFalling = CharacterMovement->IsFalling();
 
-		ZSpeed = CharacterMovement->Velocity.Z;
-		if (MyCharacter)
-		{
-			CharacterState = MyCharacter->GetCharacterState();
-		}
-	}
+	ZSpeed = Velocity.Z;
+	if (!MyCharacter)return;
+	CharacterState = MyCharacter->GetCharacterState();
 }
 
 void USlashAnimInstance::AnimNotify_AttackEnd() const
