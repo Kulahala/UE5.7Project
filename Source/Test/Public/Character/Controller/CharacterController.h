@@ -42,6 +42,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* AttackAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* ArmAction;
+
 	/* ================= 输入回调函数 ================= */
 	void Input_Move(const FInputActionValue& Value);
 	void Input_Look(const FInputActionValue& Value);
@@ -49,4 +52,5 @@ protected:
 	void Input_StopJumping();
 	void Input_Equip();
 	void Input_Attack();
+	void Input_Arm();
 };

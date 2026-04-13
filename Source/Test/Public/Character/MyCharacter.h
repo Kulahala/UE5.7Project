@@ -22,6 +22,7 @@ public:
 
 	void Equip();
 	void Attack();
+	void ArmWeapon();
 
 protected:
 	virtual void BeginPlay() override;
@@ -35,11 +36,17 @@ protected:
 	//播放攻击动画
 	void PlayAttackMontage() const;
 
-	//攻击动画蒙太奇
+	//播放武器装备和卸下装备动画
+	void PlayArmMontage(FName SectionName) const;
+
+	UPROPERTY(EditDefaultsOnly, Category = Montages)
+	UAnimMontage* ArmMontage;
+
 	UPROPERTY(EditDefaultsOnly, Category = Montages)
 	UAnimMontage* AttackMontage;
 
 	bool CanAttack() const;
+
 
 private:
 	UPROPERTY(VisibleInstanceOnly)
@@ -47,8 +54,11 @@ private:
 
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
 
 public:
 	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
@@ -56,4 +66,6 @@ public:
 	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
 	FORCEINLINE void SetActionState(EActionState NewState) { ActionState = NewState; }
 	FORCEINLINE EActionState GetActionState() const { return ActionState; }
+	FORCEINLINE void SetArmWeaponState(EArmWeaponState NewState) { ArmWeaponState = NewState; }
+	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
 };

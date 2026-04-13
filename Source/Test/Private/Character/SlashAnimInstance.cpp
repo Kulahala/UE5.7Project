@@ -49,3 +49,11 @@ void USlashAnimInstance::AnimNotify_AttackEnd() const
 		MyCharacter->SetActionState(EActionState::EAS_UnOccupied);
 	}
 }
+
+void USlashAnimInstance::AnimNotify_ArmEnd() const
+{
+	if (MyCharacter)
+	{
+		MyCharacter->SetActionState(EActionState::EAS_UnOccupied);
+	}
+}

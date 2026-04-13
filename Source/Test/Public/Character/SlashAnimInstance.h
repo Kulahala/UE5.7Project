@@ -47,5 +47,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FORCEINLINE void AnimNotify_AttackEnd() const;
 
+	UFUNCTION(BlueprintCallable)
+	FORCEINLINE void AnimNotify_ArmEnd() const;
+
 
 };

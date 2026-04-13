@@ -51,7 +51,7 @@ void AMyCharacter::Attack()
 {
 	if (CanAttack())
 	{
-		ActionState = EActionState::EAS_Attacking;
+		ActionState = EActionState::EAS_Occupying;
 		PlayAttackMontage();
 	}
 }
@@ -59,6 +59,23 @@ void AMyCharacter::Attack()
 bool AMyCharacter::CanAttack() const
 {
 	return ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped;
+}
+
+
+void AMyCharacter::ArmWeapon()
+{
+	if (ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped && ArmWeaponState != EArmWeaponState::AWS_Arming)
+	{
+		ActionState = EActionState::EAS_Occupying;
+		ArmWeaponState = EArmWeaponState::AWS_Arming;
+		PlayArmMontage(FName("ArmWeapon"));
+	}
+	else if (ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped && ArmWeaponState == EArmWeaponState::AWS_Arming)
+	{
+		ActionState = EActionState::EAS_Occupying;
+		ArmWeaponState = EArmWeaponState::AWS_Disarming;
+		PlayArmMontage(FName("DisarmWeapon"));
+	}
 }
 
 void AMyCharacter::PlayAttackMontage() const
@@ -71,10 +88,22 @@ void AMyCharacter::PlayAttackMontage() const
 		FName SectionName = FName();
 		switch (Section)
 		{
-		case 1: SectionName = FName("Attack1"); break;
-		case 2: SectionName = FName("Attack2"); break;
+		case 1: SectionName = FName("Attack1");
+			break;
+		case 2: SectionName = FName("Attack2");
+			break;
 		default: break;
 		}
 		AnimInstance->Montage_JumpToSection(SectionName, AttackMontage);
+	}
+}
+
+void AMyCharacter::PlayArmMontage(FName SectionName) const
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && ArmMontage)
+	{
+		AnimInstance->Montage_Play(ArmMontage);
+		AnimInstance->Montage_JumpToSection(SectionName, ArmMontage);
 	}
 }

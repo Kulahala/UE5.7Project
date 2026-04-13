@@ -33,6 +33,7 @@ void ACharacterController::SetupInputComponent()
 
 		EnhancedInputComponent->BindAction(EquipAction, ETriggerEvent::Started, this, &ACharacterController::Input_Equip);
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &ACharacterController::Input_Attack);
+		EnhancedInputComponent->BindAction(ArmAction, ETriggerEvent::Started, this, &ACharacterController::Input_Arm);
 	}
 }
 
@@ -41,7 +42,7 @@ void ACharacterController::Input_Move(const FInputActionValue& Value)
 	AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn());
 	if (!MyCharacter) return;
 
-	if (MyCharacter->GetActionState() == EActionState::EAS_Attacking) return;
+	if (MyCharacter->GetActionState() == EActionState::EAS_Occupying) return;
 	if (MyCharacter->GetCharacterMovement()->IsFalling()) return;
 
 	FVector2D MovementVector = Value.Get<FVector2D>();
@@ -96,5 +97,13 @@ void ACharacterController::Input_Attack()
 	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
 	{
 		MyCharacter->Attack(); 
+	}
+}
+
+void ACharacterController::Input_Arm()
+{
+	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
+	{
+		MyCharacter->ArmWeapon();
 	}
 }
