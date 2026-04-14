@@ -36,17 +36,17 @@ void AMyCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-// 供 Controller 调用的装备逻辑
 void AMyCharacter::Equip()
 {
-	if (AWeapon* OverlapWeapon = dynamic_cast<AWeapon*>(OverLapItem))
+	if (AWeapon* OverlapWeapon = Cast<AWeapon>(OverLapItem))
 	{
 		OverlapWeapon->Equip(GetMesh(), FName("hand_rSocket"));
+		EquippedWeapon = OverlapWeapon;
 		CharacterState = ECharacterState::ECS_OneHandEquipped;
+		ArmWeaponState = EArmWeaponState::AWS_Arming;
 	}
 }
 
-// 供 Controller 调用的攻击逻辑
 void AMyCharacter::Attack()
 {
 	if (CanAttack())
@@ -67,13 +67,11 @@ void AMyCharacter::ArmWeapon()
 	if (ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped && ArmWeaponState != EArmWeaponState::AWS_Arming)
 	{
 		ActionState = EActionState::EAS_Occupying;
-		ArmWeaponState = EArmWeaponState::AWS_Arming;
 		PlayArmMontage(FName("ArmWeapon"));
 	}
 	else if (ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped && ArmWeaponState == EArmWeaponState::AWS_Arming)
 	{
 		ActionState = EActionState::EAS_Occupying;
-		ArmWeaponState = EArmWeaponState::AWS_Disarming;
 		PlayArmMontage(FName("DisarmWeapon"));
 	}
 }

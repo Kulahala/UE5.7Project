@@ -5,10 +5,15 @@
 
 #include "Character/MyCharacter.h"
 
-void AWeapon::Equip(USceneComponent* Parent, FName SocketName)
+void AWeapon::AttachMeshToSocket(USceneComponent* Parent, FName SocketName)
 {
 	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
 	ItemMesh->AttachToComponent(Parent, AttachmentRules, SocketName);
+}
+
+void AWeapon::Equip(USceneComponent* Parent, FName SocketName)
+{
+	AttachMeshToSocket(Parent, SocketName);
 	ItemState = EItemState::EIS_Equipped;
 }
 

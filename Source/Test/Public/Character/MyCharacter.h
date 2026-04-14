@@ -7,6 +7,7 @@
 #include "Character/CharacterTypes.h"
 #include "MyCharacter.generated.h"
 
+class AWeapon;
 class Aitem;
 class USpringArmComponent;
 class UCameraComponent;
@@ -52,6 +53,9 @@ private:
 	UPROPERTY(VisibleInstanceOnly)
 	Aitem* OverLapItem;
 
+	UPROPERTY(VisibleInstanceOnly)
+	AWeapon* EquippedWeapon;
+
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -68,4 +72,5 @@ public:
 	FORCEINLINE EActionState GetActionState() const { return ActionState; }
 	FORCEINLINE void SetArmWeaponState(EArmWeaponState NewState) { ArmWeaponState = NewState; }
 	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
+	FORCEINLINE AWeapon* GetWeapon()const { return EquippedWeapon; }
 };

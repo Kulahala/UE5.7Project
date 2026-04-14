@@ -15,6 +15,7 @@ class TEST_API AWeapon : public Aitem
 	GENERATED_BODY()
 	
 public:
+	void AttachMeshToSocket(USceneComponent* Parent, FName SocketName);
 	void Equip(USceneComponent* Parent,FName SocketName);
 
 protected:

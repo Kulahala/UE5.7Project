@@ -42,7 +42,7 @@ void ACharacterController::Input_Move(const FInputActionValue& Value)
 	AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn());
 	if (!MyCharacter) return;
 
-	if (MyCharacter->GetActionState() == EActionState::EAS_Occupying) return;
+	if (MyCharacter->GetActionState() != EActionState::EAS_UnOccupied) return;
 	if (MyCharacter->GetCharacterMovement()->IsFalling()) return;
 
 	FVector2D MovementVector = Value.Get<FVector2D>();
@@ -72,6 +72,7 @@ void ACharacterController::Input_Jump()
 {
 	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
 	{
+		if (MyCharacter->GetActionState() != EActionState::EAS_UnOccupied) return;
 		MyCharacter->Jump();
 	}
 }

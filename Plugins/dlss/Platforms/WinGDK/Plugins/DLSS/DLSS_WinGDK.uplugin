@@ -1,0 +1,62 @@
+{
+	"FileVersion": 3,
+	"bIsPluginExtension": true,
+	"Modules": [
+		{
+			"Name": "DLSSUtility",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"WinGDK"
+			]
+		},
+		{
+			"Name": "DLSS",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"WinGDK"
+			]
+		},
+		{
+			"Name": "NGXRHI",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"WinGDK"
+			]
+		},
+		{
+			"Name": "NGXD3D11RHI",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"WinGDK"
+			]
+		},
+		{
+			"Name": "NGXD3D12RHI",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"WinGDK"
+			]
+		},
+		{
+			"Name": "NGXVulkanRHIPreInit",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"WinGDK"
+			]
+		},
+		{
+			"Name": "NGXVulkanRHI",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"WinGDK"
+			]
+		}
+	]
+}

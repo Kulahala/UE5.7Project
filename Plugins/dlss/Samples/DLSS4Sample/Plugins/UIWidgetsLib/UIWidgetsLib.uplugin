@@ -1,0 +1,17 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "NVIDIA UI Widgets Lib",
+	"Description": "Plugin for UI controls and procedural widgets that facilitate implementing UIs",
+	"Category": "UI",
+	"CreatedBy": "NVIDIA Corp.",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false
+}

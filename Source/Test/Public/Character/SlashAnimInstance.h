@@ -7,6 +7,7 @@
 #include "Character/CharacterTypes.h"
 #include "SlashAnimInstance.generated.h"
 
+class AWeapon;
 class UCharacterMovementComponent;
 class AMyCharacter;
 
@@ -38,6 +39,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = Movement)
 	float ZSpeed;
 
+	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
+
 	UPROPERTY(BlueprintReadOnly, Category="Movement|Character")
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
@@ -45,10 +49,17 @@ public:
 	float IdleTime;
 
 	UFUNCTION(BlueprintCallable)
-	FORCEINLINE void AnimNotify_AttackEnd() const;
+	FORCEINLINE void AnimNotify_OccupyEnd() const;
 
 	UFUNCTION(BlueprintCallable)
-	FORCEINLINE void AnimNotify_ArmEnd() const;
+	FORCEINLINE void AnimNotify_ArmEnd();
+	UFUNCTION(BlueprintCallable)
+	FORCEINLINE void AnimNotify_UnArmEnd();
+
+	//存储角色当前武器
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	AWeapon* CurrentWeapon;
+
 
 
 };

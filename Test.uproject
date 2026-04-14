@@ -32,6 +32,10 @@
 		{
 			"Name": "N10XSourceCodeAccess",
 			"Enabled": false
+		},
+		{
+			"Name": "AnimationWarping",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

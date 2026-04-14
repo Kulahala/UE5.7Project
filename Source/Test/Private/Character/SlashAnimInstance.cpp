@@ -4,6 +4,7 @@
 #include "Character/SlashAnimInstance.h"
 #include "Character/MyCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Items/Weapon/Weapon.h"
 #include "Kismet/KismetMathLibrary.h"
 
 void USlashAnimInstance::NativeInitializeAnimation()
@@ -42,7 +43,7 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	CharacterState = MyCharacter->GetCharacterState();
 }
 
-void USlashAnimInstance::AnimNotify_AttackEnd() const
+void USlashAnimInstance::AnimNotify_OccupyEnd() const
 {
 	if (MyCharacter)
 	{
@@ -50,10 +51,30 @@ void USlashAnimInstance::AnimNotify_AttackEnd() const
 	}
 }
 
-void USlashAnimInstance::AnimNotify_ArmEnd() const
+void USlashAnimInstance::AnimNotify_ArmEnd()
 {
 	if (MyCharacter)
 	{
-		MyCharacter->SetActionState(EActionState::EAS_UnOccupied);
+		MyCharacter->SetArmWeaponState(EArmWeaponState::AWS_Arming);
+		ArmWeaponState = EArmWeaponState::AWS_Arming;
+		CurrentWeapon = MyCharacter->GetWeapon();
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->AttachMeshToSocket(MyCharacter->GetMesh(), FName("hand_rSocket"));
+		}
+	}
+}
+
+void USlashAnimInstance::AnimNotify_UnArmEnd()
+{
+	if (MyCharacter)
+	{
+		MyCharacter->SetArmWeaponState(EArmWeaponState::AWS_Disarming);
+		ArmWeaponState = EArmWeaponState::AWS_Disarming;
+		CurrentWeapon = MyCharacter->GetWeapon();
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->AttachMeshToSocket(MyCharacter->GetMesh(), FName("SpineSocket"));
+		}
 	}
 }
