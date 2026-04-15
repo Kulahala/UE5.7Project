@@ -38,7 +38,8 @@ void AMyCharacter::Tick(float DeltaTime)
 
 void AMyCharacter::Equip()
 {
-	if (AWeapon* OverlapWeapon = Cast<AWeapon>(OverLapItem))
+	AWeapon* OverlapWeapon = Cast<AWeapon>(OverLapItem);
+	if (OverlapWeapon && CharacterState == ECharacterState::ECS_Unequipped)
 	{
 		OverlapWeapon->Equip(GetMesh(), FName("hand_rSocket"));
 		EquippedWeapon = OverlapWeapon;
@@ -51,32 +52,36 @@ void AMyCharacter::Attack()
 {
 	if (CanAttack())
 	{
-		ActionState = EActionState::EAS_Occupying;
+		ActionState = EActionState::EAS_Attacking;
 		PlayAttackMontage();
 	}
 }
 
 bool AMyCharacter::CanAttack() const
 {
-	return ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped;
+	return ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped&& ArmWeaponState == EArmWeaponState::AWS_Arming;
 }
 
 
 void AMyCharacter::ArmWeapon()
 {
-	if (ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped && ArmWeaponState != EArmWeaponState::AWS_Arming)
+	// 基础检查：确保当前没有在做其他动作
+	if (ActionState != EActionState::EAS_UnOccupied || CharacterState == ECharacterState::ECS_Unequipped) return;
+
+	if (ArmWeaponState == EArmWeaponState::AWS_Disarming)
 	{
-		ActionState = EActionState::EAS_Occupying;
+		// 准备拔刀
+		ActionState = EActionState::EAS_Arming;
 		PlayArmMontage(FName("ArmWeapon"));
 	}
-	else if (ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped && ArmWeaponState == EArmWeaponState::AWS_Arming)
+	else
 	{
-		ActionState = EActionState::EAS_Occupying;
+		ActionState = EActionState::EAS_Arming;
 		PlayArmMontage(FName("DisarmWeapon"));
 	}
 }
 
-void AMyCharacter::PlayAttackMontage() const
+void AMyCharacter::PlayAttackMontage()
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && AttackMontage)
@@ -93,15 +98,45 @@ void AMyCharacter::PlayAttackMontage() const
 		default: break;
 		}
 		AnimInstance->Montage_JumpToSection(SectionName, AttackMontage);
+
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &AMyCharacter::OnAttackMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, AttackMontage);
 	}
 }
 
-void AMyCharacter::PlayArmMontage(FName SectionName) const
+void AMyCharacter::PlayArmMontage(FName SectionName)
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && ArmMontage)
 	{
 		AnimInstance->Montage_Play(ArmMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, ArmMontage);
+
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &AMyCharacter::OnArmMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, ArmMontage);
+
 	}
 }
+
+void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+
+	ActionState = EActionState::EAS_UnOccupied;
+}
+
+void AMyCharacter::OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	ActionState = EActionState::EAS_UnOccupied;
+	if (ArmWeaponState == EArmWeaponState::AWS_Arming)
+	{
+		ArmWeaponState = EArmWeaponState::AWS_Disarming;
+	}
+	else
+	{
+		ArmWeaponState = EArmWeaponState::AWS_Arming;
+	}
+}
+
+

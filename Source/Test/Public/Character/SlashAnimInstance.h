@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,13 +5,9 @@
 #include "Character/CharacterTypes.h"
 #include "SlashAnimInstance.generated.h"
 
-class AWeapon;
 class UCharacterMovementComponent;
 class AMyCharacter;
 
-/**
- * 
- */
 UCLASS()
 class TEST_API USlashAnimInstance : public UAnimInstance
 {
@@ -21,45 +15,30 @@ class TEST_API USlashAnimInstance : public UAnimInstance
 
 public:
 	virtual void NativeInitializeAnimation() override;
-
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 	UPROPERTY(BlueprintReadOnly)
 	AMyCharacter* MyCharacter;
 
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	UCharacterMovementComponent* CharacterMovement;
 
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float GroundSpeed;
 
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool IsFalling;
 
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float ZSpeed;
 
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
-	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
-
-	UPROPERTY(BlueprintReadOnly, Category="Movement|Character")
-	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
-
-	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float IdleTime;
 
-	UFUNCTION(BlueprintCallable)
-	FORCEINLINE void AnimNotify_OccupyEnd() const;
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
 
-	UFUNCTION(BlueprintCallable)
-	FORCEINLINE void AnimNotify_ArmEnd();
-	UFUNCTION(BlueprintCallable)
-	FORCEINLINE void AnimNotify_UnArmEnd();
-
-	//存储角色当前武器
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
-	AWeapon* CurrentWeapon;
-
-
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Character")
+	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
 };

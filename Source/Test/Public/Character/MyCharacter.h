@@ -35,15 +35,19 @@ protected:
 	USpringArmComponent* SpringArm;
 
 	//播放攻击动画
-	void PlayAttackMontage() const;
+	void PlayAttackMontage();
+
+	//动画结束通知
+	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	void OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	//播放武器装备和卸下装备动画
-	void PlayArmMontage(FName SectionName) const;
+	void PlayArmMontage(FName SectionName);
 
-	UPROPERTY(EditDefaultsOnly, Category = Montages)
+	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* ArmMontage;
 
-	UPROPERTY(EditDefaultsOnly, Category = Montages)
+	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* AttackMontage;
 
 	bool CanAttack() const;
