@@ -53,8 +53,8 @@ void ACharacterController::Input_Move(const FInputActionValue& Value)
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-	MyCharacter->AddMovementInput(ForwardDirection, MovementVector.X); 
-	MyCharacter->AddMovementInput(RightDirection, MovementVector.Y);   
+	MyCharacter->AddMovementInput(ForwardDirection, MovementVector.Y); 
+	MyCharacter->AddMovementInput(RightDirection, MovementVector.X);   
 }
 
 void ACharacterController::Input_Look(const FInputActionValue& Value)

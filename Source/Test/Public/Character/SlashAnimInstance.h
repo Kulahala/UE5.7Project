@@ -41,4 +41,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Character")
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
+	UPROPERTY(BlueprintReadOnly,Category="Movement")
+	float Direction;
+
 };

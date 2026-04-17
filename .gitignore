@@ -1,14 +1,18 @@
-Binaries
-DerivedDataCache
-Intermediate
-Saved
-.vscode
-.vs
-*.VC.db
-*.opensdf
-*.opendb
-*.sdf
+# Unreal Engine ignored files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+.vscode/
+.vs/
 *.sln
 *.suo
-*.xcodeproj
-*.xcworkspace
+*.user
+*.userosscache
+*.sln.doccache
+*.opendb
+*.db
+
+# Plugins
+plugins/

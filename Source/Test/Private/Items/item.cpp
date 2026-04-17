@@ -26,8 +26,7 @@ void Aitem::BeginPlay()
 void Aitem::ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                            int32 OtherBodyIndex)
 {
-	AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor);
-	if (SlashCharacter)
+	if (AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor))
 	{
 		SlashCharacter->SetEquippedItem(nullptr);
 	}

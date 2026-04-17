@@ -14,23 +14,37 @@ UCLASS()
 class TEST_API AWeapon : public Aitem
 {
 	GENERATED_BODY()
-	
+
 public:
 	AWeapon();
 	void AttachMeshToSocket(USceneComponent* Parent, FName SocketName);
-	void Equip(USceneComponent* Parent,FName SocketName);
+	void Equip(USceneComponent* Parent, FName SocketName);
+
+	void SetCollision(ECollisionEnabled::Type CollisionType);
 
 protected:
-	virtual void ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)override;
+	virtual void ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) override;
 
-	virtual void ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)override;
+	virtual void ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+	                         const FHitResult& SweepResult) override;
+	virtual void BeginPlay() override;
+
+	UFUNCTION()
+	void OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	                  int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 private:
-	UPROPERTY(EditAnywhere,Category="Weaponproperties")
+	UPROPERTY(EditAnywhere, Category="Weaponproperties")
 	USoundBase* EquipSound;
 
-	UPROPERTY(VisibleAnywhere,Category="Weaponproperties")
+	UPROPERTY(VisibleAnywhere, Category="Weaponproperties")
 	UBoxComponent* WeaponBox;
 
+	UPROPERTY(VisibleAnywhere, Category = "Weaponproperties")
+	USceneComponent* BoxTraceStart;
 
+	UPROPERTY(VisibleAnywhere, Category = "Weaponproperties")
+	USceneComponent* BoxTraceEnd;
 };

@@ -16,7 +16,7 @@ void UAnimNotify_AttachWeapon::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 			AWeapon* CurrentWeapon = MyCharacter->GetWeapon();
 			if (CurrentWeapon)
 			{
-				CurrentWeapon->AttachMeshToSocket(MeshComp, SocketName); // 使用暴露出来的参数
+				CurrentWeapon->AttachMeshToSocket(MeshComp, SocketName); 
 			}
 		}
 	}

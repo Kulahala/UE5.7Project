@@ -72,9 +72,9 @@ public:
 	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
 	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
 	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
-	FORCEINLINE void SetActionState(EActionState NewState) { ActionState = NewState; }
+	FORCEINLINE void SetActionState(const EActionState NewState) { ActionState = NewState; }
 	FORCEINLINE EActionState GetActionState() const { return ActionState; }
-	FORCEINLINE void SetArmWeaponState(EArmWeaponState NewState) { ArmWeaponState = NewState; }
+	FORCEINLINE void SetArmWeaponState(const EArmWeaponState NewState) { ArmWeaponState = NewState; }
 	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
 	FORCEINLINE AWeapon* GetWeapon()const { return EquippedWeapon; }
 };

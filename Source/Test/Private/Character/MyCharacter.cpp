@@ -12,7 +12,6 @@ AMyCharacter::AMyCharacter()
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationYaw = false;
-
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 600.f, 0.f);
 
@@ -34,6 +33,39 @@ void AMyCharacter::BeginPlay()
 void AMyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// 获取当前速度并忽略Z轴（垂直掉落）
+	FVector Velocity = GetVelocity();
+	Velocity.Z = 0.f;
+
+	// 如果角色正在移动
+	if (!Velocity.IsNearlyZero())
+	{
+		// 获取角色朝向并忽略Z轴
+		FVector Forward = GetActorForwardVector();
+		Forward.Z = 0.f;
+		
+		// 计算移动方向与角色正前方的点乘 (1为正前，0为正左/右，-1为正后)
+		float DotProduct = FVector::DotProduct(Velocity.GetSafeNormal(), Forward.GetSafeNormal());
+		
+		if (DotProduct < -0.3f) // 夹角大于约107度 (后退或侧后方)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = 250.f; // 后退速度
+		}
+		else if (DotProduct <= 0.3f) // 夹角在72度到107度之间 (纯侧向左或右)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = 280.f; // 侧向速度
+		}
+		else // 夹角小于72度 (正前方或侧前方)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = 500.f; // 向前奔跑速度
+		}
+	}
+	else
+	{
+		// 静止时恢复默认速度
+		GetCharacterMovement()->MaxWalkSpeed = 500.f;
+	}
 }
 
 void AMyCharacter::Equip()
@@ -41,7 +73,7 @@ void AMyCharacter::Equip()
 	AWeapon* OverlapWeapon = Cast<AWeapon>(OverLapItem);
 	if (OverlapWeapon && CharacterState == ECharacterState::ECS_Unequipped)
 	{
-		OverlapWeapon->Equip(GetMesh(), FName("hand_rSocket"));
+		OverlapWeapon->Equip(GetMesh(), FName("RightHandSocket"));
 		EquippedWeapon = OverlapWeapon;
 		CharacterState = ECharacterState::ECS_OneHandEquipped;
 		ArmWeaponState = EArmWeaponState::AWS_Arming;

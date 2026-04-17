@@ -6,12 +6,28 @@
 #include "Character/MyCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/BoxComponent.h"
+#include "Interfaces/HitInterface.h"
 
 AWeapon::AWeapon()
 {
 	WeaponBox = CreateDefaultSubobject<UBoxComponent>(TEXT("WeaponBox"));
 	WeaponBox->SetupAttachment(RootComponent);
+	WeaponBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+	BoxTraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceStart"));
+	BoxTraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceEnd"));
+	BoxTraceStart->SetupAttachment(RootComponent);
+	BoxTraceEnd->SetupAttachment(RootComponent);
+
+}
+
+void AWeapon::BeginPlay()
+{
+	Super::BeginPlay();
+	if (WeaponBox)
+	{
+		WeaponBox->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::OnBoxOverlap);
+	}
 }
 
 void AWeapon::AttachMeshToSocket(USceneComponent* Parent, FName SocketName)
@@ -24,14 +40,15 @@ void AWeapon::Equip(USceneComponent* Parent, FName SocketName)
 {
 	AttachMeshToSocket(Parent, SocketName);
 	ItemState = EItemState::EIS_Equipped;
-	if (!EquipSound)
+	if (EquipSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, EquipSound, GetActorLocation());
 	}
-	if (ItemMesh)
-	{
-		ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
+}
+
+void AWeapon::SetCollision(ECollisionEnabled::Type CollisionType)
+{
+	WeaponBox->SetCollisionEnabled(CollisionType);
 }
 
 void AWeapon::ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -44,4 +61,26 @@ void AWeapon::ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Othe
                           int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	Super::ItemOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
+}
+
+void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	const FVector Start = BoxTraceStart->GetComponentLocation();
+	const FVector End = BoxTraceEnd->GetComponentLocation();
+	FVector BoxHalfExtent = FVector(5.0f,5.0f,5.0f);
+	FHitResult HitPoint;
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	ActorsToIgnore.Add(GetOwner()); // 忽略拿武器的角色，防止砍到自己
+
+	UKismetSystemLibrary::BoxTraceSingle(this, Start, End, BoxHalfExtent, BoxTraceStart->GetComponentRotation(), UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::ForDuration, HitPoint, true);
+
+	if (HitPoint.GetActor())
+	{
+		IHitInterface* HitInterface = Cast<IHitInterface>(HitPoint.GetActor());
+		if (HitInterface)
+		{
+			HitInterface->GitHit(HitPoint.ImpactPoint);
+		}
+	}
 }
