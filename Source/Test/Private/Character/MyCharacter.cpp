@@ -119,17 +119,7 @@ void AMyCharacter::PlayAttackMontage()
 	if (AnimInstance && AttackMontage)
 	{
 		AnimInstance->Montage_Play(AttackMontage);
-		const int32 Section = FMath::RandRange(1, 2);
-		FName SectionName = FName();
-		switch (Section)
-		{
-		case 1: SectionName = FName("Attack1");
-			break;
-		case 2: SectionName = FName("Attack2");
-			break;
-		default: break;
-		}
-		AnimInstance->Montage_JumpToSection(SectionName, AttackMontage);
+		AnimInstance->Montage_JumpToSection(FName("Attack2"), AttackMontage);
 
 		FOnMontageEnded EndDelegate;
 		EndDelegate.BindUObject(this, &AMyCharacter::OnAttackMontageEnded);
@@ -137,7 +127,7 @@ void AMyCharacter::PlayAttackMontage()
 	}
 }
 
-void AMyCharacter::PlayArmMontage(FName SectionName)
+void AMyCharacter::PlayArmMontage(const FName& SectionName)
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && ArmMontage)

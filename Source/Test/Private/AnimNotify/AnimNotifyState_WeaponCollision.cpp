@@ -15,6 +15,7 @@ void UAnimNotifyState_WeaponCollision::NotifyBegin(USkeletalMeshComponent* MeshC
 		{
 			if (AWeapon* Weapon = MyCharacter->GetWeapon())
 			{
+				Weapon->IgnoreActors.Empty();
 				Weapon->SetCollision(ECollisionEnabled::QueryOnly);
 			}
 		}
@@ -32,6 +33,7 @@ void UAnimNotifyState_WeaponCollision::NotifyEnd(USkeletalMeshComponent* MeshCom
 			if (AWeapon* Weapon = MyCharacter->GetWeapon())
 			{
 				Weapon->SetCollision(ECollisionEnabled::NoCollision);
+				Weapon->IgnoreActors.Empty();
 			}
 		}
 	}

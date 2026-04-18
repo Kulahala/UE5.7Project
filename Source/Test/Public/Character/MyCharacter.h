@@ -42,7 +42,7 @@ protected:
 	void OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	//播放武器装备和卸下装备动画
-	void PlayArmMontage(FName SectionName);
+	void PlayArmMontage(const FName& SectionName);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* ArmMontage;

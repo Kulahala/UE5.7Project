@@ -71,6 +71,11 @@ void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 	FHitResult HitPoint;
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
+	for (AActor* ToIgnore : IgnoreActors)
+	{
+		ActorsToIgnore.AddUnique(ToIgnore);
+	}
+
 	ActorsToIgnore.Add(GetOwner()); // 忽略拿武器的角色，防止砍到自己
 
 	UKismetSystemLibrary::BoxTraceSingle(this, Start, End, BoxHalfExtent, BoxTraceStart->GetComponentRotation(), UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::ForDuration, HitPoint, true);
@@ -82,5 +87,6 @@ void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 		{
 			HitInterface->GitHit(HitPoint.ImpactPoint);
 		}
+		IgnoreActors.AddUnique(HitPoint.GetActor());
 	}
 }

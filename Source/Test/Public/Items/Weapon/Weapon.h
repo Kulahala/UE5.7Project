@@ -22,6 +22,10 @@ public:
 
 	void SetCollision(ECollisionEnabled::Type CollisionType);
 
+	//防重复受击
+	UPROPERTY()
+	TArray<AActor*>IgnoreActors;
+
 protected:
 	virtual void ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) override;
@@ -47,4 +51,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Weaponproperties")
 	USceneComponent* BoxTraceEnd;
+
+	
 };
