@@ -22,5 +22,6 @@ class TEST_API IHitInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void GitHit(const FVector& ImpactPoint) = 0;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat")
+	void GetHit(const FVector& ImpactPoint);
 };

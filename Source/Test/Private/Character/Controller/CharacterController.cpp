@@ -50,8 +50,8 @@ void ACharacterController::Input_Move(const FInputActionValue& Value)
 	const FRotator CurrentControlRotation = GetControlRotation();
 	const FRotator YawRotation(0, ControlRotation.Yaw, 0);
 
-	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 
 	MyCharacter->AddMovementInput(ForwardDirection, MovementVector.Y); 
 	MyCharacter->AddMovementInput(RightDirection, MovementVector.X);   

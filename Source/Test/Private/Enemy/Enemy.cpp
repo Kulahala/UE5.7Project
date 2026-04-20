@@ -60,7 +60,7 @@ double AEnemy::GetHitDirection(const FVector Forward, const FVector ToHit)
 	return Theta;
 }
 
-void AEnemy::GitHit(const FVector& ImpactPoint)
+void AEnemy::GetHit_Implementation(const FVector& ImpactPoint)
 {
 	DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 12, FColor::Red, false, 5.0f, 0, 1.0f);
 

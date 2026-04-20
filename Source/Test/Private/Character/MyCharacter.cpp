@@ -58,7 +58,7 @@ void AMyCharacter::Tick(float DeltaTime)
 		}
 		else // 夹角小于72度 (正前方或侧前方)
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 500.f; // 向前奔跑速度
+			GetCharacterMovement()->MaxWalkSpeed = 400.f; // 向前奔跑速度
 		}
 	}
 	else
