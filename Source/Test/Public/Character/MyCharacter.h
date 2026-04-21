@@ -7,6 +7,7 @@
 #include "Character/CharacterTypes.h"
 #include "MyCharacter.generated.h"
 
+class UAttributeComponent;
 class AWeapon;
 class Aitem;
 class USpringArmComponent;
@@ -25,14 +26,18 @@ public:
 	void Attack();
 	void ArmWeapon();
 
+	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
+	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
+	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
+	FORCEINLINE void SetActionState(const EActionState NewState) { ActionState = NewState; }
+	FORCEINLINE EActionState GetActionState() const { return ActionState; }
+	FORCEINLINE void SetArmWeaponState(const EArmWeaponState NewState) { ArmWeaponState = NewState; }
+	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
+	FORCEINLINE AWeapon* GetWeapon()const { return EquippedWeapon; }
+	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
+
 protected:
 	virtual void BeginPlay() override;
-
-	UPROPERTY(VisibleAnywhere)
-	UCameraComponent* Camera;
-
-	UPROPERTY(VisibleAnywhere)
-	USpringArmComponent* SpringArm;
 
 	//播放攻击动画
 	void PlayAttackMontage();
@@ -44,14 +49,26 @@ protected:
 	//播放武器装备和卸下装备动画
 	void PlayArmMontage(const FName& SectionName);
 
+	bool CanAttack() const;
+
+private:
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UAttributeComponent* Attributes;
+
+protected:
+	UPROPERTY(VisibleAnywhere)
+	UCameraComponent* Camera;
+
+	UPROPERTY(VisibleAnywhere)
+	USpringArmComponent* SpringArm;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* ArmMontage;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* AttackMontage;
-
-	bool CanAttack() const;
-
 
 private:
 	UPROPERTY(VisibleInstanceOnly)
@@ -67,14 +84,4 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
-
-public:
-	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
-	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
-	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
-	FORCEINLINE void SetActionState(const EActionState NewState) { ActionState = NewState; }
-	FORCEINLINE EActionState GetActionState() const { return ActionState; }
-	FORCEINLINE void SetArmWeaponState(const EArmWeaponState NewState) { ArmWeaponState = NewState; }
-	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
-	FORCEINLINE AWeapon* GetWeapon()const { return EquippedWeapon; }
 };

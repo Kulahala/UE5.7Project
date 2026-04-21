@@ -16,7 +16,7 @@ class TEST_API Aitem : public AActor
 {
 	GENERATED_BODY()
 	
-public:	
+public:
 	Aitem();
 
 	virtual void Tick(float DeltaTime) override;
@@ -29,6 +29,10 @@ protected:
 
 	UFUNCTION()
 	virtual void SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+private:
+
+public:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "Movement")
@@ -48,8 +52,13 @@ protected:
 	float deltatime = 0.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	USceneComponent* ItemRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UStaticMeshComponent* ItemMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	USphereComponent* Sphere;
+
+private:
 };

@@ -18,11 +18,27 @@ class TEST_API ACharacterController : public APlayerController
 {
 	GENERATED_BODY()
 	
+public:
+
 protected:
 	virtual void BeginPlay() override;
 
 	virtual void SetupInputComponent() override;
 
+	/* ================= 输入回调函数 ================= */
+	void Input_Move(const FInputActionValue& Value);
+	void Input_Look(const FInputActionValue& Value);
+	void Input_Jump();
+	void Input_StopJumping();
+	void Input_Equip();
+	void Input_Attack();
+	void Input_Arm();
+
+private:
+
+public:
+
+protected:
 	/* ================= 增强输入资产声明 ================= */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* DefaultMappingContext;
@@ -45,12 +61,5 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* ArmAction;
 
-	/* ================= 输入回调函数 ================= */
-	void Input_Move(const FInputActionValue& Value);
-	void Input_Look(const FInputActionValue& Value);
-	void Input_Jump();
-	void Input_StopJumping();
-	void Input_Equip();
-	void Input_Attack();
-	void Input_Arm();
+private:
 };

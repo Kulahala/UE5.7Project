@@ -9,10 +9,10 @@
 AWeapon::AWeapon()
 {
 	BoxTraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceStart"));
-	BoxTraceStart->SetupAttachment(RootComponent);
+	BoxTraceStart->SetupAttachment(ItemMesh);
 
 	BoxTraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceEnd"));
-	BoxTraceEnd->SetupAttachment(RootComponent);
+	BoxTraceEnd->SetupAttachment(ItemMesh);
 }
 
 void AWeapon::BeginPlay()
@@ -23,7 +23,7 @@ void AWeapon::BeginPlay()
 void AWeapon::AttachMeshToSocket(USceneComponent* Parent, FName SocketName)
 {
 	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
-	ItemMesh->AttachToComponent(Parent, AttachmentRules, SocketName);
+	AttachToComponent(Parent, AttachmentRules, SocketName);
 }
 
 void AWeapon::Equip(USceneComponent* Parent, FName SocketName)

@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Character/MyCharacter.h"
+
+#include "AttributeComponent/AttributeComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Character/SlashAniminstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -23,6 +25,8 @@ AMyCharacter::AMyCharacter()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm);
+
+	Attributes = CreateDefaultSubobject<UAttributeComponent>(TEXT("Attributes"));
 }
 
 void AMyCharacter::BeginPlay()

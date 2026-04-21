@@ -29,11 +29,16 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Montages")
-	UAnimMontage* HitReactMontage;
-
 	//播放受击蒙太奇
 	void PlayHitReactMontage(const FName& SectionName);
+
+private:
+
+public:
+
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Montages")
+	UAnimMontage* HitReactMontage;
 
 	UPROPERTY(EditAnywhere,Category="Sounds")
 	USoundBase* HitSound;
@@ -41,6 +46,6 @@ protected:
 	UPROPERTY(EditAnywhere,Category="Particle")
 	UParticleSystem* HitParticle;
 
-public:
+private:
 
 };

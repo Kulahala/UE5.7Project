@@ -17,6 +17,11 @@ public:
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
+protected:
+
+private:
+
+public:
 	UPROPERTY(BlueprintReadOnly)
 	AMyCharacter* MyCharacter;
 
@@ -44,4 +49,7 @@ public:
 	UPROPERTY(BlueprintReadOnly,Category="Movement")
 	float Direction;
 
+protected:
+
+private:
 };

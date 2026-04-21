@@ -5,6 +5,7 @@
 #include "Interfaces/HitInterface.h"
 #include "BreakAbleActor.generated.h"
 
+class ATreasure;
 class UGeometryCollectionComponent;
 class UNiagaraSystem;
 
@@ -20,6 +21,11 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+private:
+
+public:
+
+protected:
 	// 1. 完整的静态网格体
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* StaticMeshComp;
@@ -36,8 +42,15 @@ protected:
 	USoundBase* ImpactSound;
 
 	UPROPERTY(EditAnywhere, Category = "Destruction")
-	float ExplosionForce = 500.f; // 这里的力度根据 GC 的质量来调，建议先给小一点
+	float ExplosionForce = 500.f; // 
 
 	UPROPERTY(EditAnywhere, Category = "Destruction")
 	float DestructionLifeSpan = 3.0f; // 多少秒后回收整个 Actor
+
+	UPROPERTY(EditAnywhere, Category = "Destruction")
+	float ExplosionRadius = 300; 
+
+private:
+	UPROPERTY(EditAnywhere, Category = "Destruction")
+	TSubclassOf<class ATreasure> TreasureClassToSpawn;
 };

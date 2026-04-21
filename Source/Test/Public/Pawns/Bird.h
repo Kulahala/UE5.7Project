@@ -28,16 +28,21 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	//移动
+	void MoveForward(float Value);
+	void Turn(float Value);
+	void LookUp(float Value);
+
+private:
+
+public:
+
+protected:
 	UPROPERTY(VisibleAnywhere)
 	UCapsuleComponent* BirdCapsule;
 
 	UPROPERTY(VisibleAnywhere)
 	USkeletalMeshComponent* BirdMesh;
-
-	//移动
-	void MoveForward(float Value);
-	void Turn(float Value);
-	void LookUp(float Value);
 
 	UPROPERTY(VisibleAnywhere)
 	USpringArmComponent* SpringArm;
@@ -45,4 +50,5 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	UCameraComponent* ViewCamera;
 
+private:
 };

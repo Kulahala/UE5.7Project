@@ -21,10 +21,6 @@ public:
 	// 执行检测：每帧调用
 	void ExecuteWeaponTrace();
 
-	// 防重复受击黑名单
-	UPROPERTY()
-	TArray<AActor*> IgnoreActors;
-
 protected:
 	virtual void SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) override;
@@ -33,6 +29,15 @@ protected:
 	                         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 	                         const FHitResult& SweepResult) override;
 	virtual void BeginPlay() override;
+
+private:
+
+public:
+	// 防重复受击黑名单
+	UPROPERTY()
+	TArray<AActor*> IgnoreActors;
+
+protected:
 
 private:
 	UPROPERTY(EditAnywhere, Category="Weaponproperties")
