@@ -60,12 +60,22 @@ double AEnemy::GetHitDirection(const FVector Forward, const FVector ToHit)
 	return Theta;
 }
 
-void AEnemy::GetHit_Implementation(const FVector& ImpactPoint)
+void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
 {
 	DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 12, FColor::Red, false, 5.0f, 0, 1.0f);
 
 	const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
-	const FVector ToHit = (ImpactPoint - GetActorLocation()).GetSafeNormal2D();
+	
+	FVector ToHit;
+	if (HitInstigator)
+	{
+		// 核心改动：把攻击者所在的方向，作为受力判定的来源点
+		ToHit = (HitInstigator->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+	}
+	else
+	{
+		ToHit = (ImpactPoint - GetActorLocation()).GetSafeNormal2D();
+	}
 
 	double Theta = GetHitDirection(Forward, ToHit);
 	FName SectionName;

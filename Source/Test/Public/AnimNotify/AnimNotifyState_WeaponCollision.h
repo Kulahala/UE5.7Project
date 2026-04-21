@@ -7,7 +7,7 @@
 #include "AnimNotifyState_WeaponCollision.generated.h"
 
 /**
- * 
+ * 武器检测：每一帧调用武器的射线，完美解决穿模和重复受击
  */
 UCLASS()
 class TEST_API UAnimNotifyState_WeaponCollision : public UAnimNotifyState
@@ -16,5 +16,6 @@ class TEST_API UAnimNotifyState_WeaponCollision : public UAnimNotifyState
 	
 public:
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 };

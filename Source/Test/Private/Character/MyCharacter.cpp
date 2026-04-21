@@ -64,7 +64,7 @@ void AMyCharacter::Tick(float DeltaTime)
 	else
 	{
 		// 静止时恢复默认速度
-		GetCharacterMovement()->MaxWalkSpeed = 500.f;
+		GetCharacterMovement()->MaxWalkSpeed = 400.f;
 	}
 }
 

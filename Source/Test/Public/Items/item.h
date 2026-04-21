@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "item.generated.h"
 
+class USphereComponent;
+
 UENUM()
 enum class EItemState : int8{ EIS_Dropped,EIS_Equipped };
 
@@ -15,28 +17,22 @@ class TEST_API Aitem : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	Aitem();
 
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	float deltatime = 0.f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	UStaticMeshComponent* ItemMesh;
 
 	UFUNCTION()
-	virtual void ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	virtual void SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UFUNCTION()
-	virtual void ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	virtual void SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+protected:
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float Amplitude = 1.5f; // 浮动的高度范围
+	float Amplitude = 10.f; // 浮动的高度范围
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float TimeConstant = 4.0f; // 浮动的速度频率
@@ -45,4 +41,15 @@ protected:
 	EItemState ItemState = EItemState::EIS_Dropped;
 
 	float RunningTime = 0.f;
+
+	// 记录初始位置，作为浮动的基准点
+	FVector StartLocation;
+
+	float deltatime = 0.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UStaticMeshComponent* ItemMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	USphereComponent* Sphere;
 };

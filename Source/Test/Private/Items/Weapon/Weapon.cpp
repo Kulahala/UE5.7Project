@@ -1,33 +1,23 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Items/Weapon/Weapon.h"
-
 #include "Character/MyCharacter.h"
 #include "Kismet/GameplayStatics.h"
-#include "Components/BoxComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Interfaces/HitInterface.h"
 
 AWeapon::AWeapon()
 {
-	WeaponBox = CreateDefaultSubobject<UBoxComponent>(TEXT("WeaponBox"));
-	WeaponBox->SetupAttachment(RootComponent);
-	WeaponBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
 	BoxTraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceStart"));
-	BoxTraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceEnd"));
 	BoxTraceStart->SetupAttachment(RootComponent);
-	BoxTraceEnd->SetupAttachment(RootComponent);
 
+	BoxTraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceEnd"));
+	BoxTraceEnd->SetupAttachment(RootComponent);
 }
 
 void AWeapon::BeginPlay()
 {
 	Super::BeginPlay();
-	if (WeaponBox)
-	{
-		WeaponBox->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::OnBoxOverlap);
-	}
 }
 
 void AWeapon::AttachMeshToSocket(USceneComponent* Parent, FName SocketName)
@@ -40,55 +30,94 @@ void AWeapon::Equip(USceneComponent* Parent, FName SocketName)
 {
 	AttachMeshToSocket(Parent, SocketName);
 	ItemState = EItemState::EIS_Equipped;
+
+	// 非常关键：绑定武器的主人，避免砍中自己
+	if (Parent && Parent->GetOwner())
+	{
+		SetOwner(Parent->GetOwner());
+	}
+
 	if (EquipSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, EquipSound, GetActorLocation());
 	}
 }
 
-void AWeapon::SetCollision(ECollisionEnabled::Type CollisionType)
+void AWeapon::StartWeaponTrace()
 {
-	WeaponBox->SetCollisionEnabled(CollisionType);
+	// 记录攻击刚开始时的初始位置
+	if (BoxTraceStart && BoxTraceEnd)
+	{
+		TraceStartOld = BoxTraceStart->GetComponentLocation();
+		TraceEndOld = BoxTraceEnd->GetComponentLocation();
+	}
 }
 
-void AWeapon::ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                             UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+void AWeapon::ExecuteWeaponTrace()
 {
-	Super::ItemEndOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex);
-}
+	if (!BoxTraceStart || !BoxTraceEnd) return;
 
-void AWeapon::ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	Super::ItemOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
-}
+	FVector Start = BoxTraceStart->GetComponentLocation();
+	FVector End = BoxTraceEnd->GetComponentLocation();
 
-void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	const FVector Start = BoxTraceStart->GetComponentLocation();
-	const FVector End = BoxTraceEnd->GetComponentLocation();
-	FVector BoxHalfExtent = FVector(5.0f,5.0f,5.0f);
-	FHitResult HitPoint;
+	// 1. 计算当前帧的刀身中心，以及上一帧的刀身中心
+	FVector CurrentCenter = (Start + End) / 2.0f;
+	FVector OldCenter = (TraceStartOld + TraceEndOld) / 2.0f;
+
+	// 2. 构造代表整把刀的盒子
+	float HalfLength = FVector::Distance(Start, End) / 2.0f;
+	FVector BoxHalfExtent = FVector(HalfLength, 5.0f, 5.0f);
+
+	// 3. 获取刀的朝向（从刀柄指向刀尖）
+	FRotator TraceRotation = (End - Start).Rotation();
+
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
+
+	if (GetOwner())
+	{
+		ActorsToIgnore.AddUnique(GetOwner());
+	}
+
 	for (AActor* ToIgnore : IgnoreActors)
 	{
 		ActorsToIgnore.AddUnique(ToIgnore);
 	}
 
-	ActorsToIgnore.Add(GetOwner()); // 忽略拿武器的角色，防止砍到自己
+	FHitResult HitPoint;
+	
+	// 4. 真正的扫面：让代表整把刀的盒子，从上一帧的中心，扫到当前帧的中心！
+	bool bHit = UKismetSystemLibrary::BoxTraceSingle(
+		this, OldCenter, CurrentCenter, BoxHalfExtent, TraceRotation,
+		UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::ForDuration, HitPoint,
+		true, FLinearColor::Red, FLinearColor::Green, 3.f);
 
-	UKismetSystemLibrary::BoxTraceSingle(this, Start, End, BoxHalfExtent, BoxTraceStart->GetComponentRotation(), UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::ForDuration, HitPoint, true);
+	// 记录本帧位置，留给下帧做参考
+	TraceStartOld = Start;
+	TraceEndOld = End;
 
-	if (HitPoint.GetActor())
+	if (bHit && HitPoint.GetActor())
 	{
-		IHitInterface* HitInterface = Cast<IHitInterface>(HitPoint.GetActor());
 		AActor* HitActor = HitPoint.GetActor();
-		if (HitActor && HitActor->Implements<UHitInterface>())
+		if (HitActor->Implements<UHitInterface>())
 		{
-			IHitInterface::Execute_GetHit(HitPoint.GetActor(), HitPoint.ImpactPoint);
-			IgnoreActors.AddUnique(HitPoint.GetActor());
+			IHitInterface::Execute_GetHit(HitActor, HitPoint.ImpactPoint, GetOwner());
+
+			// 击中一次后加入黑名单，防止同一刀造成多次伤害
+			IgnoreActors.AddUnique(HitActor);
 		}
-		
 	}
+}
+
+void AWeapon::SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                               UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	Super::SphereEndOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex);
+}
+
+void AWeapon::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                            UPrimitiveComponent* OtherComp,
+                            int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	Super::SphereOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
 }

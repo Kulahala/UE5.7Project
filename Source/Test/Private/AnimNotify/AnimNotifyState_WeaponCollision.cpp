@@ -15,8 +15,28 @@ void UAnimNotifyState_WeaponCollision::NotifyBegin(USkeletalMeshComponent* MeshC
 		{
 			if (AWeapon* Weapon = MyCharacter->GetWeapon())
 			{
+				// 挥砍开始，清空上一刀留下的黑名单，准备重新砍人
 				Weapon->IgnoreActors.Empty();
-				Weapon->SetCollision(ECollisionEnabled::QueryOnly);
+				
+				// 记录刀的起始位置
+				Weapon->StartWeaponTrace();
+			}
+		}
+	}
+}
+
+void UAnimNotifyState_WeaponCollision::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
+{
+	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
+
+	if (MeshComp && MeshComp->GetOwner())
+	{
+		if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(MeshComp->GetOwner()))
+		{
+			if (AWeapon* Weapon = MyCharacter->GetWeapon())
+			{
+				// 每一帧触发检测，确保不管刀挥多快都不会穿模
+				Weapon->ExecuteWeaponTrace();
 			}
 		}
 	}
@@ -32,10 +52,9 @@ void UAnimNotifyState_WeaponCollision::NotifyEnd(USkeletalMeshComponent* MeshCom
 		{
 			if (AWeapon* Weapon = MyCharacter->GetWeapon())
 			{
-				Weapon->SetCollision(ECollisionEnabled::NoCollision);
+				// 挥砍结束，再次清空一下防万一
 				Weapon->IgnoreActors.Empty();
 			}
 		}
 	}
 }
-

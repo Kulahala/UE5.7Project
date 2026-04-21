@@ -6,10 +6,6 @@
 #include "Items/item.h"
 #include "Weapon.generated.h"
 
-class UBoxComponent;
-/**
- * 
- */
 UCLASS()
 class TEST_API AWeapon : public Aitem
 {
@@ -20,31 +16,27 @@ public:
 	void AttachMeshToSocket(USceneComponent* Parent, FName SocketName);
 	void Equip(USceneComponent* Parent, FName SocketName);
 
-	void SetCollision(ECollisionEnabled::Type CollisionType);
+	// 开始检测：重置旧位置
+	void StartWeaponTrace();
+	// 执行检测：每帧调用
+	void ExecuteWeaponTrace();
 
-	//防重复受击
+	// 防重复受击黑名单
 	UPROPERTY()
-	TArray<AActor*>IgnoreActors;
+	TArray<AActor*> IgnoreActors;
 
 protected:
-	virtual void ItemEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	virtual void SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) override;
 
-	virtual void ItemOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	virtual void SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 	                         const FHitResult& SweepResult) override;
 	virtual void BeginPlay() override;
 
-	UFUNCTION()
-	void OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	                  int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
 private:
 	UPROPERTY(EditAnywhere, Category="Weaponproperties")
 	USoundBase* EquipSound;
-
-	UPROPERTY(VisibleAnywhere, Category="Weaponproperties")
-	UBoxComponent* WeaponBox;
 
 	UPROPERTY(VisibleAnywhere, Category = "Weaponproperties")
 	USceneComponent* BoxTraceStart;
@@ -52,5 +44,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Weaponproperties")
 	USceneComponent* BoxTraceEnd;
 
-	
+	// 用于保存上一帧的位置，防止极高速穿模（扫面检测所需）
+	FVector TraceStartOld;
+	FVector TraceEndOld;
 };
