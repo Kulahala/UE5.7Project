@@ -13,17 +13,9 @@ class TEST_API UAnimNotify_SetActionState : public UAnimNotify
 public:
 	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
-protected:
-
-private:
-
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
 	EActionState NewActionState = EActionState::EAS_UnOccupied; // 默认给个结束占用的状态
-
-protected:
-
-private:
 };
 
 // 专门用于改变 武器装备状态 (Arm Weapon State) 的通知
@@ -35,15 +27,8 @@ class TEST_API UAnimNotify_SetArmWeaponState : public UAnimNotify
 public:
 	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
-protected:
-
-private:
-
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
 	EArmWeaponState NewArmState ;
 
-protected:
-
-private:
 };

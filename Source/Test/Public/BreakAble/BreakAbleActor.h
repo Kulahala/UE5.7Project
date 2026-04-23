@@ -20,6 +20,10 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	//SM替换GC
+	void BreakReplaced(const FVector& ImpactPoint);
+	//破碎后放置宝物
+	void SpawnSingleTreasure(UWorld* World);
 
 private:
 
@@ -48,9 +52,19 @@ protected:
 	float DestructionLifeSpan = 3.0f; // 多少秒后回收整个 Actor
 
 	UPROPERTY(EditAnywhere, Category = "Destruction")
-	float ExplosionRadius = 300; 
+	float ExplosionRadius = 300;
+
+	UPROPERTY(EditAnywhere, Category = "Destruction|Drops")
+	TSubclassOf<class ATreasure> BaseTreasureClass;
+
+	// 可能会掉落的“物品卡片”池
+	UPROPERTY(EditAnywhere, Category = "Destruction|Drops")
+	TArray<class UTreasureData*> PossibleDrops;
+
+	UPROPERTY(EditAnywhere, Category = "Destruction|Drops")
+	int32 MinDrops = 1;
+	UPROPERTY(EditAnywhere, Category = "Destruction|Drops")
+	int32 MaxDrops = 3;
 
 private:
-	UPROPERTY(EditAnywhere, Category = "Destruction")
-	TSubclassOf<class ATreasure> TreasureClassToSpawn;
 };

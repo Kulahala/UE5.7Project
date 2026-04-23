@@ -6,6 +6,7 @@
 #include "AssetTypeActions/AssetDefinition_SoundBase.h"
 #include "AttributeComponent/AttributeComponent.h"
 #include "Character/MyCharacter.h"
+#include "Items/Treasures/TreasureData.h"
 #include "Kismet/GameplayStatics.h"
 
 ATreasure::ATreasure()
@@ -15,12 +16,31 @@ ATreasure::ATreasure()
 	if (ItemMesh)
 	{
 		ItemMesh->SetGenerateOverlapEvents(true);
-		// 设置为仅查询，不进行物理碰撞计算
 		ItemMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		// 忽略所有通道
 		ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-		// 单独让 Pawn 通道触发重叠事件
 		ItemMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+	}
+}
+
+void ATreasure::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+}
+
+void ATreasure::InitializeFromData(UTreasureData* Data)
+{
+	if (Data == nullptr)return;
+
+	if (Data->TreasureMesh && ItemMesh)
+	{
+		ItemMesh->SetStaticMesh(Data->TreasureMesh);
+		ItemMesh->SetRelativeScale3D(FVector(Data->TreasureScale));
+	}
+	TreasureName = Data->TreasureName;
+	GoldValue = Data->GoldValue;
+	if (Data->PickUpSound && PickSound)
+	{
+		PickSound = Data->PickUpSound;
 	}
 }
 
@@ -44,6 +64,11 @@ void ATreasure::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 		if (UAttributeComponent* CharacterAttributes = SlashCharacter->GetAttributes())
 		{
 			CharacterAttributes->AddGold(GoldValue);
+			if (GEngine)
+			{
+				FString Message = FString::Printf(TEXT("捡到%s,价值%d,总金币:%d"), *TreasureName, GoldValue, CharacterAttributes->GetGold());
+				GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, Message);
+			}
 			if (PickSound)
 			{
 				UGameplayStatics::PlaySoundAtLocation(this, PickSound, OtherActor->GetActorLocation());
@@ -51,8 +76,4 @@ void ATreasure::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 			Destroy();
 		}
 	}
-}
-
-void ATreasure::Tick(float DeltaSeconds)
-{
 }

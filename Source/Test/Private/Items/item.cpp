@@ -9,7 +9,6 @@
 // Sets default values
 Aitem::Aitem()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	ItemRoot = CreateDefaultSubobject<USceneComponent>(TEXT("ItemRoot"));
@@ -30,12 +29,10 @@ Aitem::Aitem()
 	ItemMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 }
 
-// Called when the game starts or when spawned
 void Aitem::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	// 记录初始位置
+
 	StartLocation = GetActorLocation();
 	
 	Sphere->OnComponentEndOverlap.AddDynamic(this, &Aitem::SphereEndOverlap);
@@ -61,17 +58,52 @@ void Aitem::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Othe
 	}
 }
 
+void Aitem::StartSpawning(const FVector& Target)
+{
+	ItemState = EItemState::EIS_Spawning;
+	TargetLocation = Target;
+	StartLocation = GetActorLocation(); // 重新记录起点为当前位置
+	SpawnRunningTime = 0.f;
+}
+
 void Aitem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	RunningTime += DeltaTime;
 
-	if (ItemState == EItemState::EIS_Dropped)
+	if (ItemState == EItemState::EIS_Spawning)
+	{
+		SpawnRunningTime += DeltaTime;
+		float Alpha = FMath::Clamp(SpawnRunningTime / SpawnDuration, 0.f, 1.f);
+		
+		// XY 轴线性插值
+		FVector CurrentLocation = FMath::Lerp(StartLocation, TargetLocation, Alpha);
+		
+		// Z 轴叠加抛物线 (正弦波 0->1->0)
+		CurrentLocation.Z += FMath::Sin(Alpha * PI) * SpawnHeight;
+		
+		SetActorLocation(CurrentLocation);
+
+		// 抛物线结束
+		if (Alpha >= 1.f)
+		{
+			ItemState = EItemState::EIS_Dropped;
+			StartLocation = TargetLocation; // 更新掉落后的浮动基准点
+			RunningTime = 0.f; // 重置浮动时间
+		}
+	}
+	else if (ItemState == EItemState::EIS_Dropped)
 	{
 		// 计算Z轴绝对偏移，+1 保证最低点为初始位置，浮动区间为 [0, 2*Amplitude]
 		float ZOffset = Amplitude * (FMath::Sin(RunningTime * TimeConstant) + 1.f);
 		
 		// 基于初始位置进行绝对位置更新
 		SetActorLocation(StartLocation + FVector(0.f, 0.f, ZOffset));
+	}
+
+	// 无论是在抛物线中还是浮动中，都保持自转
+	if (ItemState == EItemState::EIS_Spawning || ItemState == EItemState::EIS_Dropped)
+	{
+		AddActorWorldRotation(FRotator(0.f, RotationRate * DeltaTime, 0.f));
 	}
 }

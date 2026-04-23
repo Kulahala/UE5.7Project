@@ -27,9 +27,4 @@ void UAttributeComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 void UAttributeComponent::AddGold(int32 Amount)
 {
 	Gold += Amount;
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow,
-		                                 FString::Printf(TEXT("获得了 %d 金币！总金币:%d"), Amount, Gold));
-	}
 }

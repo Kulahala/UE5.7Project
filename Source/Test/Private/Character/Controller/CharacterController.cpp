@@ -47,12 +47,14 @@ void ACharacterController::Input_Move(const FInputActionValue& Value)
 
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	const FRotator CurrentControlRotation = GetControlRotation();
-	const FRotator YawRotation(0, ControlRotation.Yaw, 0);
+	const FRotator Rotation = GetControlRotation();
+	const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	// 获取标准的虚幻坐标轴（X=前，Y=右）
+	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
+	// Y 轴对应前后 (W/S/摇杆上下)，X 轴对应左右 (A/D/摇杆左右)
 	MyCharacter->AddMovementInput(ForwardDirection, MovementVector.Y); 
 	MyCharacter->AddMovementInput(RightDirection, MovementVector.X);   
 }

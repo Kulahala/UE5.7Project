@@ -89,7 +89,7 @@ void AWeapon::ExecuteWeaponTrace()
 	// 4. 真正的扫面：让代表整把刀的盒子，从上一帧的中心，扫到当前帧的中心！
 	bool bHit = UKismetSystemLibrary::BoxTraceSingle(
 		this, OldCenter, CurrentCenter, BoxHalfExtent, TraceRotation,
-		UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::ForDuration, HitPoint,
+		UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::None, HitPoint,
 		true, FLinearColor::Red, FLinearColor::Green, 3.f);
 
 	// 记录本帧位置，留给下帧做参考
