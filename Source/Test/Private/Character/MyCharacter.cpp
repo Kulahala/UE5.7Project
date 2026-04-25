@@ -42,33 +42,51 @@ void AMyCharacter::Tick(float DeltaTime)
 	FVector Velocity = GetVelocity();
 	Velocity.Z = 0.f;
 
+	// 计算速度倍率：只有在真正手持武器的状态下 (AWS_Arming) 才会减速为原来的 0.875
+	float SpeedMultiplier = (ArmWeaponState == EArmWeaponState::AWS_Arming) ? 0.875f : 1.0f;
+
 	// 如果角色正在移动
 	if (!Velocity.IsNearlyZero())
 	{
 		// 获取角色朝向并忽略Z轴
 		FVector Forward = GetActorForwardVector();
 		Forward.Z = 0.f;
-		
+
 		// 计算移动方向与角色正前方的点乘 (1为正前，0为正左/右，-1为正后)
 		float DotProduct = FVector::DotProduct(Velocity.GetSafeNormal(), Forward.GetSafeNormal());
-		
-		if (DotProduct < -0.3f) // 夹角大于约107度 (后退或侧后方)
+
+		if (DotProduct > 0.8f) // 夹角约 0~36 度 (正前方)
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 250.f; // 后退速度
+			GetCharacterMovement()->MaxWalkSpeed = 400.f * SpeedMultiplier; 
 		}
-		else if (DotProduct <= 0.3f) // 夹角在72度到107度之间 (纯侧向左或右)
+		else if (DotProduct > 0.2f) // 夹角约 36~78 度 (前左 / 前右)
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 280.f; // 侧向速度
+			GetCharacterMovement()->MaxWalkSpeed = 400.f * SpeedMultiplier;
 		}
-		else // 夹角小于72度 (正前方或侧前方)
+		else if (DotProduct >= -0.2f) // 夹角约 78~101 度 (纯左 / 纯右)
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 400.f; // 向前奔跑速度
+			GetCharacterMovement()->MaxWalkSpeed = 325.f * SpeedMultiplier;
+		}
+		else if (DotProduct >= -0.8f) // 夹角约 101~143 度 (后左 / 后右)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = 250.f * SpeedMultiplier;
+		}
+		else // 夹角约 143~180 度 (纯后退)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = 250.f * SpeedMultiplier; 
 		}
 	}
 	else
 	{
 		// 静止时恢复默认速度
-		GetCharacterMovement()->MaxWalkSpeed = 400.f;
+		GetCharacterMovement()->MaxWalkSpeed = 400.f * SpeedMultiplier;
+	}
+
+	// 打印调试信息：在屏幕左上角实时显示当前最大移动速度
+	if (GEngine)
+	{
+		FString DebugMsg = FString::Printf(TEXT("Current Max Speed: %f"), GetCharacterMovement()->MaxWalkSpeed);
+		GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Cyan, DebugMsg);
 	}
 }
 
@@ -77,7 +95,7 @@ void AMyCharacter::Equip()
 	AWeapon* OverlapWeapon = Cast<AWeapon>(OverLapItem);
 	if (OverlapWeapon && CharacterState == ECharacterState::ECS_Unequipped)
 	{
-		OverlapWeapon->Equip(GetMesh(), FName("RightHandSocket"));
+		OverlapWeapon->Equip(GetMesh(), FName("RightHandSocket"),this,this);
 		EquippedWeapon = OverlapWeapon;
 		CharacterState = ECharacterState::ECS_OneHandEquipped;
 		ArmWeaponState = EArmWeaponState::AWS_Arming;
@@ -95,14 +113,18 @@ void AMyCharacter::Attack()
 
 bool AMyCharacter::CanAttack() const
 {
-	return ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped&& ArmWeaponState == EArmWeaponState::AWS_Arming;
+	return ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped &&
+		ArmWeaponState == EArmWeaponState::AWS_Arming;
 }
 
 
 void AMyCharacter::ArmWeapon()
 {
 	// 基础检查：确保当前没有在做其他动作
-	if (ActionState != EActionState::EAS_UnOccupied || CharacterState == ECharacterState::ECS_Unequipped) return;
+	if (ActionState != EActionState::EAS_UnOccupied || CharacterState == ECharacterState::ECS_Unequipped)
+	{
+		return;
+	}
 
 	if (ArmWeaponState == EArmWeaponState::AWS_Disarming)
 	{
@@ -142,13 +164,11 @@ void AMyCharacter::PlayArmMontage(const FName& SectionName)
 		FOnMontageEnded EndDelegate;
 		EndDelegate.BindUObject(this, &AMyCharacter::OnArmMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(EndDelegate, ArmMontage);
-
 	}
 }
 
 void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-
 	ActionState = EActionState::EAS_UnOccupied;
 }
 
@@ -164,5 +184,3 @@ void AMyCharacter::OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 		ArmWeaponState = EArmWeaponState::AWS_Arming;
 	}
 }
-
-

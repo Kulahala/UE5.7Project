@@ -20,24 +20,14 @@ class TEST_API AMyCharacter : public ACharacter
 
 public:
 	AMyCharacter();
-	virtual void Tick(float DeltaTime) override;
 
 	void Equip();
 	void Attack();
 	void ArmWeapon();
 
-	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
-	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
-	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
-	FORCEINLINE void SetActionState(const EActionState NewState) { ActionState = NewState; }
-	FORCEINLINE EActionState GetActionState() const { return ActionState; }
-	FORCEINLINE void SetArmWeaponState(const EArmWeaponState NewState) { ArmWeaponState = NewState; }
-	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
-	FORCEINLINE AWeapon* GetWeapon()const { return EquippedWeapon; }
-	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
-
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 
 	//播放攻击动画
 	void PlayAttackMontage();
@@ -51,19 +41,6 @@ protected:
 
 	bool CanAttack() const;
 
-private:
-
-public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UAttributeComponent* Attributes;
-
-protected:
-	UPROPERTY(VisibleAnywhere)
-	UCameraComponent* Camera;
-
-	UPROPERTY(VisibleAnywhere)
-	USpringArmComponent* SpringArm;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* ArmMontage;
 
@@ -71,17 +48,39 @@ protected:
 	UAnimMontage* AttackMontage;
 
 private:
-	UPROPERTY(VisibleInstanceOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* Camera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	USpringArmComponent* SpringArm;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UAttributeComponent* Attributes;
+
+	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	Aitem* OverLapItem;
 
-	UPROPERTY(VisibleInstanceOnly)
+	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	AWeapon* EquippedWeapon;
 
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;
 
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
+
+public:
+	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
+	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
+	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
+	FORCEINLINE void SetActionState(const EActionState NewState) { ActionState = NewState; }
+	FORCEINLINE EActionState GetActionState() const { return ActionState; }
+	FORCEINLINE void SetArmWeaponState(const EArmWeaponState NewState) { ArmWeaponState = NewState; }
+	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
+	FORCEINLINE AWeapon* GetWeapon() const { return EquippedWeapon; }
+	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
+	FORCEINLINE UCameraComponent* GetCamera() const { return Camera; }
+	FORCEINLINE USpringArmComponent* GetSpringArm() const { return SpringArm; }
 };

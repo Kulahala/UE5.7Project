@@ -19,16 +19,10 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
-	if (FMath::IsNearlyZero(GroundSpeed))
+	if (!CharacterMovement || !MyCharacter)
 	{
-		IdleTime += DeltaSeconds;
+		return;
 	}
-	else
-	{
-		IdleTime = 0;
-	}
-
-	if (!CharacterMovement || !MyCharacter) return;
 
 	const FVector Velocity = CharacterMovement->Velocity;
 	GroundSpeed = Velocity.Size2D();
@@ -36,11 +30,9 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 	Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, MyCharacter->GetActorRotation());
 	IsFalling = CharacterMovement->IsFalling();
-		
+
 
 	// 同步角色状态
 	CharacterState = MyCharacter->GetCharacterState();
-	ArmWeaponState = MyCharacter->GetArmWeaponState(); 
-
-	
+	ArmWeaponState = MyCharacter->GetArmWeaponState();
 }

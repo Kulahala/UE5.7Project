@@ -1,32 +1,31 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Items/item.h"
 
 #include "Character/MyCharacter.h"
 #include "Components/SphereComponent.h"
+#include "NiagaraComponent.h"
 
-// Sets default values
 Aitem::Aitem()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	ItemRoot = CreateDefaultSubobject<USceneComponent>(TEXT("ItemRoot"));
-	SetRootComponent(ItemRoot);
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(Root);
 
-	ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
-	ItemMesh->SetupAttachment(ItemRoot);
-	ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	Mesh->SetupAttachment(Root);
+	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	Sphere = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
 	Sphere->SetGenerateOverlapEvents(true);
 	Sphere->SetupAttachment(RootComponent);
 	Sphere->InitSphereRadius(30.f);
 
-	
-	ItemMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	ItemMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+	Effect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Effect"));
+	Effect->SetupAttachment(RootComponent);
+
+	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
 void Aitem::BeginPlay()
@@ -34,13 +33,14 @@ void Aitem::BeginPlay()
 	Super::BeginPlay();
 
 	StartLocation = GetActorLocation();
-	
+
 	Sphere->OnComponentEndOverlap.AddDynamic(this, &Aitem::SphereEndOverlap);
 	Sphere->OnComponentBeginOverlap.AddDynamic(this, &Aitem::SphereOverlap);
 }
 
-void Aitem::SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                           int32 OtherBodyIndex)
+void Aitem::SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                             UPrimitiveComponent* OtherComp,
+                             int32 OtherBodyIndex)
 {
 	if (AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor))
 	{
@@ -49,7 +49,7 @@ void Aitem::SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* O
 }
 
 void Aitem::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                        int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor);
 	if (SlashCharacter)
@@ -75,13 +75,13 @@ void Aitem::Tick(float DeltaTime)
 	{
 		SpawnRunningTime += DeltaTime;
 		float Alpha = FMath::Clamp(SpawnRunningTime / SpawnDuration, 0.f, 1.f);
-		
+
 		// XY 轴线性插值
 		FVector CurrentLocation = FMath::Lerp(StartLocation, TargetLocation, Alpha);
-		
+
 		// Z 轴叠加抛物线 (正弦波 0->1->0)
 		CurrentLocation.Z += FMath::Sin(Alpha * PI) * SpawnHeight;
-		
+
 		SetActorLocation(CurrentLocation);
 
 		// 抛物线结束
@@ -96,7 +96,7 @@ void Aitem::Tick(float DeltaTime)
 	{
 		// 计算Z轴绝对偏移，+1 保证最低点为初始位置，浮动区间为 [0, 2*Amplitude]
 		float ZOffset = Amplitude * (FMath::Sin(RunningTime * TimeConstant) + 1.f);
-		
+
 		// 基于初始位置进行绝对位置更新
 		SetActorLocation(StartLocation + FVector(0.f, 0.f, ZOffset));
 	}

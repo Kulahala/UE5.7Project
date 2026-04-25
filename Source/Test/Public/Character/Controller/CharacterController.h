@@ -17,12 +17,11 @@ UCLASS()
 class TEST_API ACharacterController : public APlayerController
 {
 	GENERATED_BODY()
-	
+
 public:
 
 protected:
 	virtual void BeginPlay() override;
-
 	virtual void SetupInputComponent() override;
 
 	/* ================= 输入回调函数 ================= */
@@ -34,11 +33,6 @@ protected:
 	void Input_Attack();
 	void Input_Arm();
 
-private:
-
-public:
-
-protected:
 	/* ================= 增强输入资产声明 ================= */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* DefaultMappingContext;
@@ -62,4 +56,5 @@ protected:
 	UInputAction* ArmAction;
 
 private:
+
 };

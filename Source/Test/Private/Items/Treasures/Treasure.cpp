@@ -13,12 +13,12 @@ ATreasure::ATreasure()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	if (ItemMesh)
+	if (GetMesh())
 	{
-		ItemMesh->SetGenerateOverlapEvents(true);
-		ItemMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-		ItemMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+		GetMesh()->SetGenerateOverlapEvents(true);
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		GetMesh()->SetCollisionResponseToAllChannels(ECR_Ignore);
+		GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	}
 }
 
@@ -29,12 +29,15 @@ void ATreasure::Tick(float DeltaSeconds)
 
 void ATreasure::InitializeFromData(UTreasureData* Data)
 {
-	if (Data == nullptr)return;
-
-	if (Data->TreasureMesh && ItemMesh)
+	if (Data == nullptr)
 	{
-		ItemMesh->SetStaticMesh(Data->TreasureMesh);
-		ItemMesh->SetRelativeScale3D(FVector(Data->TreasureScale));
+		return;
+	}
+
+	if (Data->TreasureMesh && GetMesh())
+	{
+		GetMesh()->SetStaticMesh(Data->TreasureMesh);
+		GetMesh()->SetRelativeScale3D(FVector(Data->TreasureScale));
 	}
 	TreasureName = Data->TreasureName;
 	GoldValue = Data->GoldValue;
@@ -66,7 +69,8 @@ void ATreasure::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 			CharacterAttributes->AddGold(GoldValue);
 			if (GEngine)
 			{
-				FString Message = FString::Printf(TEXT("捡到%s,价值%d,总金币:%d"), *TreasureName, GoldValue, CharacterAttributes->GetGold());
+				FString Message = FString::Printf(
+					TEXT("捡到%s,价值%d,总金币:%d"), *TreasureName, GoldValue, CharacterAttributes->GetGold());
 				GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, Message);
 			}
 			if (PickSound)

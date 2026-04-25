@@ -4,7 +4,11 @@
 #include "Enemy/Enemy.h"
 
 #include "NiagaraFunctionLibrary.h"
+#include "AttributeComponent/AttributeComponent.h"
 #include "components/CapsuleComponent.h"
+#include "Components/WidgetComponent.h"
+#include "HUD/BaseHealthBarWidget.h"
+#include "HUD/HealthBarComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 // Sets default values
@@ -12,16 +16,30 @@ AEnemy::AEnemy()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	GetMesh()->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
+	GetMesh()->SetCollisionObjectType(ECC_Pawn);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Overlap);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetGenerateOverlapEvents(true);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+
+	Attributes = CreateDefaultSubobject<UAttributeComponent>(TEXT("Attributes"));
+
+	HealthBarWidgetComp = CreateDefaultSubobject<UHealthBarComponent>(TEXT("HealthBar"));
+	HealthBarWidgetComp->SetupAttachment(RootComponent);
 }
 
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (Attributes && HealthBarWidgetComp)
+	{
+		// 绑定广播：当血量改变时，自动调用血条更新
+		Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
+
+		// 初始化：设为满血
+		HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
+	}
 }
 
 
@@ -60,16 +78,26 @@ double AEnemy::GetHitDirection(const FVector Forward, const FVector ToHit)
 	return Theta;
 }
 
-void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
+float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent, class AController* EventInstigator,
+                         AActor* DamageCauser)
 {
-	DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 12, FColor::Red, false, 5.0f, 0, 1.0f);
+	if (Attributes)
+	{
+		Attributes->ReceiveDamage(DamageAmount);
+	}
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+}
 
+void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, AActor* HitInstigator)
+{
+	//敌人的方向向量
 	const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
-	
+
+	//受击来源方向
 	FVector ToHit;
 	if (HitInstigator)
 	{
-		// 核心改动：把攻击者所在的方向，作为受力判定的来源点
+		//把攻击者所在的方向，作为受力判定的来源点
 		ToHit = (HitInstigator->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
 	}
 	else
@@ -77,6 +105,7 @@ void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstig
 		ToHit = (ImpactPoint - GetActorLocation()).GetSafeNormal2D();
 	}
 
+	//方向向量与受击方向向量夹角
 	double Theta = GetHitDirection(Forward, ToHit);
 	FName SectionName;
 	if (Theta >= -45.f && Theta <= 45.f)
@@ -89,16 +118,70 @@ void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstig
 	}
 	else if (Theta < -45.f && Theta >= -135.f)
 	{
-		SectionName = "FromLeft";
+		SectionName = FName("FromLeft");
 	}
 	else
 	{
 		SectionName = FName("FromBack");
 	}
 	PlayHitReactMontage(SectionName);
+}
 
-	if (!HitSound)return;
-	UGameplayStatics::PlaySoundAtLocation(this, HitSound, ImpactPoint);
-	if (!HitParticle)return;
-	UGameplayStatics::SpawnEmitterAtLocation(this, HitParticle, ImpactPoint);
+void AEnemy::PlayDeathMontage()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && DeathMontage)
+	{
+		//强制打断其他动画
+		AnimInstance->Montage_Stop(0.1f);
+
+		FName SectionName;
+		switch (FMath::RandRange(1, 4))
+		{
+		case 1:
+			SectionName = FName("Section1");
+			break;
+		case 2:
+			SectionName = FName("Section2");
+			break;
+		case 3:
+			SectionName = FName("Section3");
+			break;
+		case 4:
+			SectionName = FName("Section4");
+			break;
+		default: break;
+		}
+		AnimInstance->Montage_Play(DeathMontage);
+		AnimInstance->Montage_JumpToSection(SectionName, DeathMontage);
+	}
+}
+
+void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
+{
+	DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 10, FColor::Red, false, 5.0f, 0, 0.5f);
+
+	if (Attributes)
+	{
+		if (Attributes->IsAlive()) //存活
+		{
+			DirectionalHitReact(ImpactPoint, HitInstigator);
+		}
+		else //死亡
+		{
+			PlayDeathMontage();
+			GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+		}
+	}
+
+	if (HitSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, HitSound, ImpactPoint);
+	}
+
+	if (HitParticle)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(this, HitParticle, ImpactPoint);
+	}
 }

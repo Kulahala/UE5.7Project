@@ -20,3 +20,8 @@ plugins/
 # Gemini CLI Configs
 GEMINI.md
 .geminiignore
+
+# Git-LFS S3 Adapter
+lfs-s3.exe
+lfs-s3.tar.gz
+#setup_lfs.ps1

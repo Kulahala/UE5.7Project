@@ -20,36 +20,28 @@ public:
 protected:
 
 private:
-
-public:
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "References", meta = (AllowPrivateAccess = "true"))
 	AMyCharacter* MyCharacter;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "References", meta = (AllowPrivateAccess = "true"))
 	UCharacterMovementComponent* CharacterMovement;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	float GroundSpeed;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	bool IsFalling;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	float ZSpeed;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float IdleTime;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Movement|Character")
-	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
-
-	UPROPERTY(BlueprintReadOnly,Category="Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	float Direction;
 
-protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
-private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
+
 };

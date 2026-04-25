@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,11 +11,12 @@ UCLASS()
 class TEST_API UTreasureData : public UDataAsset
 {
 	GENERATED_BODY()
+
 public:
-	UPROPERTY(EditAnywhere,Category = "Treasure Info")
+	UPROPERTY(EditAnywhere, Category = "Treasure Info")
 	UStaticMesh* TreasureMesh;
 
-	UPROPERTY(EditAnywhere,Category = "Treasure Info")
+	UPROPERTY(EditAnywhere, Category = "Treasure Info")
 	int32 GoldValue = 10;
 	
 	UPROPERTY(EditAnywhere, Category = "Treasure Info")
@@ -27,4 +27,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Treasure Info")
 	float TreasureScale = 1.f;
+
+protected:
+
+private:
+
 };

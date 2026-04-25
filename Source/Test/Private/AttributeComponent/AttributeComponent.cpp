@@ -9,22 +9,25 @@ UAttributeComponent::UAttributeComponent()
 	Gold = 0;
 }
 
+void UAttributeComponent::ReceiveDamage(float Damage)
+{
+	CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.f, MaxHealth);
+	
+	OnHealthChanged.Broadcast(GetHealthPercent());
 
-// Called when the game starts
+	if (CurrentHealth == 0)
+	{
+		//TODO À¿Õˆ
+	}
+}
+
 void UAttributeComponent::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-
-// Called every frame
 void UAttributeComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                         FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-}
-
-void UAttributeComponent::AddGold(int32 Amount)
-{
-	Gold += Amount;
 }
