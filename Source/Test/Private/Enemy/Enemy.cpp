@@ -32,8 +32,10 @@ void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 
+
 	if (Attributes && HealthBarWidgetComp)
 	{
+		HealthBarWidgetComp->SetVisibility(false);
 		// 绑定广播：当血量改变时，自动调用血条更新
 		Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
 
@@ -46,6 +48,23 @@ void AEnemy::BeginPlay()
 void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (CombatTarget)
+	{
+		float Distance = (CombatTarget->GetActorLocation() - GetActorLocation()).SizeSquared();
+		if (Distance <= FMath::Square(CombatRadius))
+		{
+			// 在战斗半径内的逻辑
+		}
+		else
+		{
+			CombatTarget = nullptr; // 超出战斗半径，清除目标
+			if (HealthBarWidgetComp)
+			{
+				HealthBarWidgetComp->SetVisibility(false);
+			}
+		}
+	}
 }
 
 void AEnemy::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -81,9 +100,16 @@ double AEnemy::GetHitDirection(const FVector Forward, const FVector ToHit)
 float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent, class AController* EventInstigator,
                          AActor* DamageCauser)
 {
+
 	if (Attributes)
 	{
 		Attributes->ReceiveDamage(DamageAmount);
+
+		AActor* DamagedActor = EventInstigator->GetPawn();
+		if (DamagedActor)
+		{
+			CombatTarget = DamagedActor;
+		}
 	}
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
@@ -127,39 +153,45 @@ void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, AActor* HitInstigat
 	PlayHitReactMontage(SectionName);
 }
 
-void AEnemy::PlayDeathMontage()
+void AEnemy::Die()
 {
+	if (HealthBarWidgetComp)
+	{
+		HealthBarWidgetComp->SetVisibility(false);
+	}
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	//随机播放死亡动画
 	if (AnimInstance && DeathMontage)
 	{
 		//强制打断其他动画
 		AnimInstance->Montage_Stop(0.1f);
 
-		FName SectionName;
-		switch (FMath::RandRange(1, 4))
-		{
-		case 1:
-			SectionName = FName("Section1");
-			break;
-		case 2:
-			SectionName = FName("Section2");
-			break;
-		case 3:
-			SectionName = FName("Section3");
-			break;
-		case 4:
-			SectionName = FName("Section4");
-			break;
-		default: break;
-		}
+		int32 RandomIndex = FMath::RandRange(1, 3);
+		FName SectionName = FName(FString::Printf(TEXT("Section%d"), RandomIndex));
+
 		AnimInstance->Montage_Play(DeathMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, DeathMontage);
 	}
+
+	//关闭胶囊体碰撞
+	ActionState = EActionState::EAC_Dead;
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	SetLifeSpan(5.f);
 }
 
 void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
 {
 	DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 10, FColor::Red, false, 5.0f, 0, 0.5f);
+
+	if (HealthBarWidgetComp)
+	{
+		HealthBarWidgetComp->SetVisibility(true);
+	}
+	
 
 	if (Attributes)
 	{
@@ -169,9 +201,7 @@ void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstig
 		}
 		else //死亡
 		{
-			PlayDeathMontage();
-			GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+			Die();
 		}
 	}
 

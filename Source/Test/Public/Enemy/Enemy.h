@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Character/CharacterTypes.h"
 #include "GameFramework/Character.h"
 #include "Interfaces/HitInterface.h"
 #include "Enemy.generated.h"
@@ -31,7 +32,9 @@ public:
 
 	//播放受击方向动画
 	void DirectionalHitReact(const FVector& ImpactPoint, AActor* HitInstigator);
-	void PlayDeathMontage();
+
+	//死亡逻辑
+	void Die();
 
 protected:
 	virtual void BeginPlay() override;
@@ -59,6 +62,17 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UHealthBarComponent* HealthBarWidgetComp;//角色蓝图组件
+
+	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	EActionState ActionState = EActionState::EAS_UnOccupied;
+
+	//仇恨目标
+	UPROPERTY()
+	AActor* CombatTarget;
+
+	//战斗半径
+	double CombatRadius = 500.f;
+
 
 public:
 	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }

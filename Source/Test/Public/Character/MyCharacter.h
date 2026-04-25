@@ -63,7 +63,7 @@ private:
 	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	AWeapon* EquippedWeapon;
 
-	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
+	EWeaponState CharacterState = EWeaponState::ECS_Unequipped;
 
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;
@@ -74,7 +74,7 @@ private:
 public:
 	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
 	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
-	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
+	FORCEINLINE EWeaponState GetCharacterState() const { return CharacterState; }
 	FORCEINLINE void SetActionState(const EActionState NewState) { ActionState = NewState; }
 	FORCEINLINE EActionState GetActionState() const { return ActionState; }
 	FORCEINLINE void SetArmWeaponState(const EArmWeaponState NewState) { ArmWeaponState = NewState; }

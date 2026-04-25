@@ -93,11 +93,11 @@ void AMyCharacter::Tick(float DeltaTime)
 void AMyCharacter::Equip()
 {
 	AWeapon* OverlapWeapon = Cast<AWeapon>(OverLapItem);
-	if (OverlapWeapon && CharacterState == ECharacterState::ECS_Unequipped)
+	if (OverlapWeapon && CharacterState == EWeaponState::ECS_Unequipped)
 	{
 		OverlapWeapon->Equip(GetMesh(), FName("RightHandSocket"),this,this);
 		EquippedWeapon = OverlapWeapon;
-		CharacterState = ECharacterState::ECS_OneHandEquipped;
+		CharacterState = EWeaponState::ECS_OneHandEquipped;
 		ArmWeaponState = EArmWeaponState::AWS_Arming;
 	}
 }
@@ -113,7 +113,7 @@ void AMyCharacter::Attack()
 
 bool AMyCharacter::CanAttack() const
 {
-	return ActionState == EActionState::EAS_UnOccupied && CharacterState != ECharacterState::ECS_Unequipped &&
+	return ActionState == EActionState::EAS_UnOccupied && CharacterState != EWeaponState::ECS_Unequipped &&
 		ArmWeaponState == EArmWeaponState::AWS_Arming;
 }
 
@@ -121,7 +121,7 @@ bool AMyCharacter::CanAttack() const
 void AMyCharacter::ArmWeapon()
 {
 	// 基础检查：确保当前没有在做其他动作
-	if (ActionState != EActionState::EAS_UnOccupied || CharacterState == ECharacterState::ECS_Unequipped)
+	if (ActionState != EActionState::EAS_UnOccupied || CharacterState == EWeaponState::ECS_Unequipped)
 	{
 		return;
 	}
