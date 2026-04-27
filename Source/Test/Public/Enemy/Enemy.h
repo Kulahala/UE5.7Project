@@ -24,24 +24,26 @@ public:
 
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
 	double GetHitDirection(const FVector& Forward, const FVector& ToHit);
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+	                         class AController* EventInstigator, AActor* DamageCauser) override;  //受击逻辑
 	void DirectionalHitReact(const FVector& ImpactPoint, AActor* HitInstigator);
-	void Die();
+	void Die(); //死亡演出
 
 protected:
 	virtual void BeginPlay() override;
+	void CheckPatrolTarget(float DeltaTime); //巡逻逻辑
 	virtual void Tick(float DeltaTime) override;
+
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	void PlayHitReactMontage(const FName& SectionName);
-
-	// 血条延迟隐藏机制
-	FTimerHandle HealthBarHideTimer;
+	bool BInTargetRange(AActor* Target, double Range)const;
+	FTimerHandle HealthBarHideTimer; //血条延迟隐藏机制
+	void ShowHealthBar();
+	void HideHealthBar();
+	void MoveToPatrolTarget();
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	float HealthBarDisplayTime = 4.0f;
-
-	void ShowHealthBar();
-	void HideHealthBar();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* HitReactMontage;
@@ -63,29 +65,59 @@ private:
 	UHealthBarComponent* HealthBarWidgetComp;
 
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
-	EActionState ActionState = EActionState::EAS_UnOccupied;
+	EEnemyState EnemyState = EEnemyState::EES_Patrolling;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	float GroundSpeed;
 
-	//���Ŀ��
+	// 战斗目标
 	UPROPERTY()
-	AActor* CombatTarget;
+	AActor* ChasingTarget;
 
-	double CombatRadius = 500.f;
+	UPROPERTY(VisibleAnywhere, Category = "Combat")
+	double ChasingRadius = 1000.f; //追击范围
 
+	UPROPERTY(VisibleAnywhere, Category = "Combat")
+	double AttackingRadius = 200.f;//战斗范围
+	
 	/*
-	 * Ѱ·
+	 * 寻路与导航
 	 */
-	//Ѳ��Ŀ��
+	 // AI控制器
+	FTimerHandle PatrolTimer;
+	void PatrolTimerFinished(); //等待计时器回调
+	UPROPERTY()
+	AActor* SpawnPoint; // 记录动态生成的出生点
 	UPROPERTY()
 	AAIController* EnemyController;
-
-	UPROPERTY(EditInstanceOnly,Category = "Navigation")
+	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
 	AActor* PatrolTarget;
 
-	UPROPERTY(EditInstanceOnly, Category = "Navigation")
-	TArray<AActor*>PatrolTargets;
+	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
+	float PatrolRadius = 200.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
+	TArray<AActor*> PatrolTargets;
+
+	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
+	float PatrolWaitMin = 3.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
+	float PatrolWaitMax = 5.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
+	float PatrolRotationSpeed = 2.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
+	float SingleLookTime = 1.5f;
+
+	FTimerHandle LookTimer;
+	void GenerateNewLookRotation();
+
+	FRotator PatrolWaitTargetRotation;
+
+	
+
 public:
 	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
 };

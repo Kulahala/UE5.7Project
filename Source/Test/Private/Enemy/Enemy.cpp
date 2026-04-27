@@ -8,10 +8,12 @@
 #include "AttributeComponent/AttributeComponent.h"
 #include "components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Engine/TargetPoint.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "HUD/BaseHealthBarWidget.h"
 #include "HUD/HealthBarComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Navigation/PathFollowingComponent.h"
 
 // Sets default values
 AEnemy::AEnemy()
@@ -34,7 +36,6 @@ AEnemy::AEnemy()
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationPitch = false;
-
 }
 
 void AEnemy::BeginPlay()
@@ -44,42 +45,101 @@ void AEnemy::BeginPlay()
 	HealthBarWidgetComp->SetVisibility(false);
 	// 绑定广播：当血量改变时，自动调用血条更新
 	Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
-
 	// 初始化：设为满血
 	HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
-
-	EnemyController =Cast<AAIController>(GetController());
-	if (EnemyController && PatrolTarget)
+	
+	// 添加出生点（将Z轴坐标下移到胶囊体底部，防止悬空导致后续寻路失败）
+	FVector SpawnLocation = GetActorLocation();
+	if (GetCapsuleComponent())
 	{
-		FAIMoveRequest MoveRequest;
-		MoveRequest.SetGoalActor(PatrolTarget);
-		MoveRequest.SetAcceptanceRadius(80);
-		MoveRequest.SetUsePathfinding(true);
-		FNavPathSharedPtr NavPath;
-
-		//EnemyController->MoveTo(MoveRequest, &NavPath);
+		SpawnLocation.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	}
+	
+	SpawnPoint = GetWorld()->SpawnActor<ATargetPoint>(ATargetPoint::StaticClass(), SpawnLocation, GetActorRotation());
+	if (SpawnPoint)
+	{
+		PatrolTargets.Add(SpawnPoint);
+		if (!PatrolTarget)
+		{
+			PatrolTarget = SpawnPoint;
+		}
+	}
+	
+	EnemyController = Cast<AAIController>(GetController());
+	MoveToPatrolTarget();
 }
 
+
+void AEnemy::GenerateNewLookRotation()
+{
+	float RandomYaw = FMath::RandRange(45.f, 120.f) * (FMath::RandBool() ? 1.f : -1.f);
+	PatrolWaitTargetRotation = GetActorRotation() + FRotator(0.f, RandomYaw, 0.f);
+}
+
+void AEnemy::CheckPatrolTarget(float DeltaTime)
+{
+	if (!IsValid(PatrolTarget))return;
+	if (BInTargetRange(PatrolTarget, PatrolRadius))
+	{
+		if (!GetWorldTimerManager().IsTimerActive(PatrolTimer))
+		{
+			// 刚到达：启动计时器
+			const float WaitTime = FMath::RandRange(PatrolWaitMin, PatrolWaitMax);
+			GetWorldTimerManager().SetTimer(PatrolTimer, this, &AEnemy::PatrolTimerFinished, WaitTime);
+
+			// 启动单次转身的循环计时器
+			GetWorldTimerManager().SetTimer(LookTimer, this, &AEnemy::GenerateNewLookRotation, SingleLookTime, true);
+			
+			// 立即生成第一个转身目标
+			GenerateNewLookRotation();
+		}
+		else
+		{
+			// 等待期间：平滑旋转到当前决定的目标朝向
+			FRotator CurrentRotation = GetActorRotation();
+			FRotator NewRotation = FMath::RInterpTo(CurrentRotation, PatrolWaitTargetRotation, DeltaTime, PatrolRotationSpeed);
+			SetActorRotation(NewRotation);
+		}
+	}
+}
 
 void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 缓存地面速度供多线程动画蓝图使用
+	if (EnemyState == EEnemyState::EES_Dead)
+	{
+		return;
+	}
 	GroundSpeed = GetVelocity().Size2D();
 
-	if (CombatTarget)
+	//状态切换逻辑
+	switch (EnemyState)
 	{
-		float Distance = (CombatTarget->GetActorLocation() - GetActorLocation()).SizeSquared();
-		if (Distance <= FMath::Square(CombatRadius))
+	case EEnemyState::EES_Patrolling:
+		CheckPatrolTarget(DeltaTime);
+		break;
+	case EEnemyState::EES_Chasing: //只负责状态，判断交给CheckCombatTarget()
+	case EEnemyState::EES_Attacking:
+		//CheckCombatTarget();
+		//战斗逻辑
+		if (ChasingTarget)
 		{
-			// 在战斗半径内的逻辑
+			if (BInTargetRange(ChasingTarget, ChasingRadius))
+			{
+				//TODO 在战斗半径内的逻辑
+			}
+			else
+			{
+				//超出战斗半径，清除目标
+				EnemyState = EEnemyState::EES_Patrolling;
+				ChasingTarget = nullptr;
+				MoveToPatrolTarget();
+			}
 		}
-		else
-		{
-			CombatTarget = nullptr; // 超出战斗半径，清除目标
-		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -96,6 +156,16 @@ void AEnemy::PlayHitReactMontage(const FName& SectionName)
 		AnimInstance->Montage_Play(HitReactMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, HitReactMontage);
 	}
+}
+
+bool AEnemy::BInTargetRange(AActor* Target, double Range) const
+{
+	if (!IsValid(Target))
+	{
+		return false;
+	}
+	double Distance = (Target->GetActorLocation() - GetActorLocation()).SizeSquared2D();
+	return Distance <= FMath::Square(Range);
 }
 
 double AEnemy::GetHitDirection(const FVector& Forward, const FVector& ToHit)
@@ -118,12 +188,38 @@ float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEv
 {
 	Attributes->ReceiveDamage(DamageAmount);
 
-	AActor* DamagedActor = EventInstigator->GetPawn();
-	if (DamagedActor)
+	if (Attributes->IsAlive())
 	{
-		CombatTarget = DamagedActor;
+		//没死
+		AActor* DamagedActor = EventInstigator->GetPawn();
+		if (DamagedActor)
+		{
+			ChasingTarget = DamagedActor;
+			EnemyState = EEnemyState::EES_Chasing; // 被打了立刻进入追逐状态
+		}
 	}
-	
+	else //死了
+	{
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+		}
+
+		//关闭胶囊体碰撞
+		EnemyState = EEnemyState::EES_Dead;
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		GetWorldTimerManager().ClearTimer(PatrolTimer);
+		GetWorldTimerManager().ClearTimer(LookTimer);
+		if (SpawnPoint)
+		{
+			SpawnPoint->Destroy();
+		}
+
+		SetLifeSpan(5.f);
+	}
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
@@ -166,11 +262,11 @@ void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, AActor* HitInstigat
 	PlayHitReactMontage(SectionName);
 }
 
-void AEnemy::Die()
+void AEnemy::Die() //主要负责动画
 {
 	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
 	HealthBarWidgetComp->SetVisibility(false);
-	
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	//随机播放死亡动画
@@ -185,14 +281,6 @@ void AEnemy::Die()
 		AnimInstance->Montage_Play(DeathMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, DeathMontage);
 	}
-
-	//关闭胶囊体碰撞
-	ActionState = EActionState::EAC_Dead;
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-	SetLifeSpan(5.f);
 }
 
 void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
@@ -246,7 +334,7 @@ void AEnemy::HideHealthBar()
 	{
 		// 获取组件内部的 Widget 实例，并尝试转换为我们的 C++ 基类
 		UBaseHealthBarWidget* HealthWidget = Cast<UBaseHealthBarWidget>(HealthBarWidgetComp->GetUserWidgetObject());
-		
+
 		if (HealthWidget)
 		{
 			// 触发蓝图事件：播放动画 -> 延迟 0.5s -> 隐藏 -> 恢复透明度
@@ -257,5 +345,67 @@ void AEnemy::HideHealthBar()
 			// 如果强转失败或还没绑定蓝图，降级处理为直接隐藏
 			HealthBarWidgetComp->SetVisibility(false);
 		}
+	}
+}
+
+void AEnemy::MoveToPatrolTarget()
+{
+	if (EnemyController && PatrolTarget)
+	{
+		FAIMoveRequest MoveRequest;
+		MoveRequest.SetGoalActor(PatrolTarget);
+
+		float StopRadius = FMath::Max(15.f, PatrolRadius - 50.f);
+
+		MoveRequest.SetAcceptanceRadius(StopRadius);
+		if (StopRadius >= PatrolRadius)
+		{
+			ensureMsgf(false, TEXT("AEnemy: PatrolRadius (%.1f) 设定太小，请重新手动设定或程序自定设定"), PatrolRadius);
+			StopRadius = FMath::Max(0.f, PatrolRadius - 10.f);
+		}
+		MoveRequest.SetUsePathfinding(true);
+		FNavPathSharedPtr NavPath;
+		EnemyController->MoveTo(MoveRequest, &NavPath);
+
+		//调试绘制
+		if (NavPath.IsValid())
+		{
+			TArray<FNavPathPoint>& PathPoints = NavPath->GetPathPoints();
+			for (FNavPathPoint& Point : PathPoints)
+			{
+				const FVector& PointLocation = Point.Location;
+				DrawDebugSphere(GetWorld(), PointLocation, 12.f, 12, FColor::Green, false, 10.f);
+			}
+		}
+	}
+}
+
+void AEnemy::PatrolTimerFinished()
+{
+	GetWorldTimerManager().ClearTimer(LookTimer); // 停止张望
+
+	TArray<AActor*> Candidates; //额外目标数组
+	for (AActor* Target : PatrolTargets)
+	{
+		if (Target != PatrolTarget)
+		{
+			if (!BInTargetRange(Target, PatrolRadius))
+			{
+				Candidates.AddUnique(Target);
+			}
+		}
+	}
+	if ((Candidates.Num() > 0))
+	{
+		PatrolTarget = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+		MoveToPatrolTarget();
+	}
+	else
+	{
+		// 极端情况：所有点都挨得太近了，原地重新开启一轮等待和张望
+		const float WaitTime = FMath::RandRange(PatrolWaitMin, PatrolWaitMax);
+		GetWorldTimerManager().SetTimer(PatrolTimer, this, &AEnemy::PatrolTimerFinished, WaitTime);
+		GetWorldTimerManager().SetTimer(LookTimer, this, &AEnemy::GenerateNewLookRotation, SingleLookTime, true);
+		GenerateNewLookRotation();
 	}
 }

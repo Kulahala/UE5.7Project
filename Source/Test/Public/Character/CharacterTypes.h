@@ -19,3 +19,11 @@ enum class EArmWeaponState : uint8
 {
 	AWS_Arming UMETA(DisplayName = "Arming"), AWS_Disarming UMETA(DisplayName = "Disarming")
 };
+
+UENUM()
+enum class EEnemyState : uint8 {
+	EES_Patrolling UMETA(DisplayName = "Patrolling"), // 巡逻中
+	EES_Chasing UMETA(DisplayName = "Chasing"),       // 追逐中
+	EES_Attacking UMETA(DisplayName = "Attacking"),   // 攻击中
+	EES_Dead UMETA(DisplayName = "Dead")              // 已死亡
+};
