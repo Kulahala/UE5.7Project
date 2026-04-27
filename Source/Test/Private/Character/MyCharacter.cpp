@@ -42,44 +42,52 @@ void AMyCharacter::Tick(float DeltaTime)
 	FVector Velocity = GetVelocity();
 	Velocity.Z = 0.f;
 
-	// 计算速度倍率：只有在真正手持武器的状态下 (AWS_Arming) 才会减速为原来的 0.875
+	// 持刀状态减速，模拟机动性受限
 	float SpeedMultiplier = (ArmWeaponState == EArmWeaponState::AWS_Arming) ? 0.875f : 1.0f;
 
-	// 如果角色正在移动
+	// 动态移速：根据移动方向与正前方的夹角（点乘）缩放 MaxWalkSpeed
 	if (!Velocity.IsNearlyZero())
 	{
-		// 获取角色朝向并忽略Z轴
 		FVector Forward = GetActorForwardVector();
 		Forward.Z = 0.f;
 
-		// 计算移动方向与角色正前方的点乘 (1为正前，0为正左/右，-1为正后)
 		float DotProduct = FVector::DotProduct(Velocity.GetSafeNormal(), Forward.GetSafeNormal());
 
-		if (DotProduct > 0.8f) // 夹角约 0~36 度 (正前方)
+		// 基础速度基准
+		float BaseSpeed = 300.f; 
+		
+		// 状态提速：冲刺(Shift) vs 步行(Alt)
+		if (bIsSprinting && ActionState == EActionState::EAS_UnOccupied && DotProduct > 0.2f)
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 400.f * SpeedMultiplier; 
+			BaseSpeed = 450.f; 
 		}
-		else if (DotProduct > 0.2f) // 夹角约 36~78 度 (前左 / 前右)
+		else if (bIsWalking && ActionState == EActionState::EAS_UnOccupied)
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 400.f * SpeedMultiplier;
+			BaseSpeed = 150.f; 
 		}
-		else if (DotProduct >= -0.2f) // 夹角约 78~101 度 (纯左 / 纯右)
+
+		// 分段移速缩放：全速(前) -> 80%(侧) -> 65%(后)
+		if (DotProduct > 0.8f) 
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 325.f * SpeedMultiplier;
+			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * SpeedMultiplier; 
 		}
-		else if (DotProduct >= -0.8f) // 夹角约 101~143 度 (后左 / 后右)
+		else if (DotProduct > 0.2f) 
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 250.f * SpeedMultiplier;
+			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * SpeedMultiplier;
 		}
-		else // 夹角约 143~180 度 (纯后退)
+		else if (DotProduct >= -0.2f) 
 		{
-			GetCharacterMovement()->MaxWalkSpeed = 250.f * SpeedMultiplier; 
+			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * 0.8f * SpeedMultiplier;
+		}
+		else 
+		{
+			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * 0.65f * SpeedMultiplier;
 		}
 	}
 	else
 	{
 		// 静止时恢复默认速度
-		GetCharacterMovement()->MaxWalkSpeed = 400.f * SpeedMultiplier;
+		GetCharacterMovement()->MaxWalkSpeed = 300.f * SpeedMultiplier;
 	}
 
 	// 打印调试信息：在屏幕左上角实时显示当前最大移动速度
@@ -137,6 +145,32 @@ void AMyCharacter::ArmWeapon()
 		ActionState = EActionState::EAS_Arming;
 		PlayArmMontage(FName("DisarmWeapon"));
 	}
+}
+
+void AMyCharacter::Sprint()
+{
+	if (ActionState == EActionState::EAS_UnOccupied)
+	{
+		bIsSprinting = true;
+	}
+}
+
+void AMyCharacter::StopSprinting()
+{
+	bIsSprinting = false;
+}
+
+void AMyCharacter::Walk()
+{
+	if (ActionState == EActionState::EAS_UnOccupied)
+	{
+		bIsWalking = true;
+	}
+}
+
+void AMyCharacter::StopWalking()
+{
+	bIsWalking = false;
 }
 
 void AMyCharacter::PlayAttackMontage()

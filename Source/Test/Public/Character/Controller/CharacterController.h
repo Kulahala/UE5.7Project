@@ -32,6 +32,10 @@ protected:
 	void Input_Equip();
 	void Input_Attack();
 	void Input_Arm();
+	void Input_SprintStart();
+	void Input_SprintEnd();
+	void Input_WalkStart();
+	void Input_WalkEnd();
 
 	/* ================= 增强输入资产声明 ================= */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -54,6 +58,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* ArmAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* SprintAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* WalkAction;
 
 private:
 

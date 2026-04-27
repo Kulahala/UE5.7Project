@@ -24,6 +24,10 @@ public:
 	void Equip();
 	void Attack();
 	void ArmWeapon();
+	void Sprint();
+	void StopSprinting();
+	void Walk();
+	void StopWalking();
 
 protected:
 	virtual void BeginPlay() override;
@@ -64,6 +68,12 @@ private:
 	AWeapon* EquippedWeapon;
 
 	EWeaponState CharacterState = EWeaponState::ECS_Unequipped;
+
+	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	bool bIsSprinting = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	bool bIsWalking = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;

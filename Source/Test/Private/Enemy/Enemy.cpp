@@ -3,10 +3,12 @@
 
 #include "Enemy/Enemy.h"
 
+#include "AIController.h"
 #include "NiagaraFunctionLibrary.h"
 #include "AttributeComponent/AttributeComponent.h"
 #include "components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "HUD/BaseHealthBarWidget.h"
 #include "HUD/HealthBarComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -26,21 +28,36 @@ AEnemy::AEnemy()
 
 	HealthBarWidgetComp = CreateDefaultSubobject<UHealthBarComponent>(TEXT("HealthBar"));
 	HealthBarWidgetComp->SetupAttachment(RootComponent);
+
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->MaxWalkSpeed = 330;
+	bUseControllerRotationYaw = false;
+	bUseControllerRotationRoll = false;
+	bUseControllerRotationPitch = false;
+
 }
 
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 
+	HealthBarWidgetComp->SetVisibility(false);
+	// 绑定广播：当血量改变时，自动调用血条更新
+	Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
 
-	if (Attributes && HealthBarWidgetComp)
+	// 初始化：设为满血
+	HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
+
+	EnemyController =Cast<AAIController>(GetController());
+	if (EnemyController && PatrolTarget)
 	{
-		HealthBarWidgetComp->SetVisibility(false);
-		// 绑定广播：当血量改变时，自动调用血条更新
-		Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
+		FAIMoveRequest MoveRequest;
+		MoveRequest.SetGoalActor(PatrolTarget);
+		MoveRequest.SetAcceptanceRadius(80);
+		MoveRequest.SetUsePathfinding(true);
+		FNavPathSharedPtr NavPath;
 
-		// 初始化：设为满血
-		HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
+		//EnemyController->MoveTo(MoveRequest, &NavPath);
 	}
 }
 
@@ -48,6 +65,9 @@ void AEnemy::BeginPlay()
 void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// 缓存地面速度供多线程动画蓝图使用
+	GroundSpeed = GetVelocity().Size2D();
 
 	if (CombatTarget)
 	{
@@ -59,10 +79,6 @@ void AEnemy::Tick(float DeltaTime)
 		else
 		{
 			CombatTarget = nullptr; // 超出战斗半径，清除目标
-			if (HealthBarWidgetComp)
-			{
-				HealthBarWidgetComp->SetVisibility(false);
-			}
 		}
 	}
 }
@@ -82,7 +98,7 @@ void AEnemy::PlayHitReactMontage(const FName& SectionName)
 	}
 }
 
-double AEnemy::GetHitDirection(const FVector Forward, const FVector ToHit)
+double AEnemy::GetHitDirection(const FVector& Forward, const FVector& ToHit)
 {
 	// forward * tohit = |forward||tohit|* cos(theta)，|forward| = |tohit| = 1
 	const double CosTheta = FVector::DotProduct(Forward, ToHit);
@@ -100,17 +116,14 @@ double AEnemy::GetHitDirection(const FVector Forward, const FVector ToHit)
 float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent, class AController* EventInstigator,
                          AActor* DamageCauser)
 {
+	Attributes->ReceiveDamage(DamageAmount);
 
-	if (Attributes)
+	AActor* DamagedActor = EventInstigator->GetPawn();
+	if (DamagedActor)
 	{
-		Attributes->ReceiveDamage(DamageAmount);
-
-		AActor* DamagedActor = EventInstigator->GetPawn();
-		if (DamagedActor)
-		{
-			CombatTarget = DamagedActor;
-		}
+		CombatTarget = DamagedActor;
 	}
+	
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
@@ -155,10 +168,9 @@ void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, AActor* HitInstigat
 
 void AEnemy::Die()
 {
-	if (HealthBarWidgetComp)
-	{
-		HealthBarWidgetComp->SetVisibility(false);
-	}
+	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
+	HealthBarWidgetComp->SetVisibility(false);
+	
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	//随机播放死亡动画
@@ -185,24 +197,17 @@ void AEnemy::Die()
 
 void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
 {
-	DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 10, FColor::Red, false, 5.0f, 0, 0.5f);
+	//DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 10, FColor::Red, false, 5.0f, 0, 0.5f);
 
-	if (HealthBarWidgetComp)
+	ShowHealthBar();
+
+	if (Attributes->IsAlive()) //存活
 	{
-		HealthBarWidgetComp->SetVisibility(true);
+		DirectionalHitReact(ImpactPoint, HitInstigator);
 	}
-	
-
-	if (Attributes)
+	else //死亡
 	{
-		if (Attributes->IsAlive()) //存活
-		{
-			DirectionalHitReact(ImpactPoint, HitInstigator);
-		}
-		else //死亡
-		{
-			Die();
-		}
+		Die();
 	}
 
 	if (HitSound)
@@ -213,5 +218,44 @@ void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstig
 	if (HitParticle)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(this, HitParticle, ImpactPoint);
+	}
+}
+
+void AEnemy::ShowHealthBar()
+{
+	if (HealthBarWidgetComp)
+	{
+		HealthBarWidgetComp->SetVisibility(true);
+	}
+
+	// 每次调用都会重置 4 秒倒计时
+	GetWorldTimerManager().SetTimer(
+		HealthBarHideTimer,
+		this,
+		&AEnemy::HideHealthBar,
+		HealthBarDisplayTime,
+		false
+	);
+}
+
+void AEnemy::HideHealthBar()
+{
+	// TODO: 魂系锁定机制。等待锁定功能实现后，在这里判断 if (bIsTargetedByPlayer) return; 以保持血条显示
+
+	if (HealthBarWidgetComp)
+	{
+		// 获取组件内部的 Widget 实例，并尝试转换为我们的 C++ 基类
+		UBaseHealthBarWidget* HealthWidget = Cast<UBaseHealthBarWidget>(HealthBarWidgetComp->GetUserWidgetObject());
+		
+		if (HealthWidget)
+		{
+			// 触发蓝图事件：播放动画 -> 延迟 0.5s -> 隐藏 -> 恢复透明度
+			HealthWidget->PlayFadeOutAnim();
+		}
+		else
+		{
+			// 如果强转失败或还没绑定蓝图，降级处理为直接隐藏
+			HealthBarWidgetComp->SetVisibility(false);
+		}
 	}
 }

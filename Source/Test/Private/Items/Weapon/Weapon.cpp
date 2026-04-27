@@ -6,6 +6,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Interfaces/HitInterface.h"
 #include "NiagaraComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 
 AWeapon::AWeapon()
 {
@@ -55,32 +57,25 @@ void AWeapon::Equip(USceneComponent* Parent, const FName& SocketName, AActor* Ne
 void AWeapon::StartWeaponTrace()
 {
 	// 记录攻击刚开始时的初始位置
-	if (BoxTraceStart && BoxTraceEnd)
-	{
-		TraceStartOld = BoxTraceStart->GetComponentLocation();
-		TraceEndOld = BoxTraceEnd->GetComponentLocation();
-	}
+	check(BoxTraceStart && BoxTraceEnd);
+	TraceStartOld = BoxTraceStart->GetComponentLocation();
+	TraceEndOld = BoxTraceEnd->GetComponentLocation();
 }
 
 void AWeapon::ExecuteWeaponTrace()
 {
-	if (!BoxTraceStart || !BoxTraceEnd)
-	{
-		return;
-	}
+	check(BoxTraceStart && BoxTraceEnd);
 
 	FVector Start = BoxTraceStart->GetComponentLocation();
 	FVector End = BoxTraceEnd->GetComponentLocation();
 
-	// 1. 计算当前帧的刀身中心，以及上一帧的刀身中心
+	// 计算当前帧与上一帧的中心点
 	FVector CurrentCenter = (Start + End) / 2.0f;
 	FVector OldCenter = (TraceStartOld + TraceEndOld) / 2.0f;
 
-	// 2. 构造代表整把刀的盒子
+	// 构造代表整把刀的盒体参数
 	float HalfLength = FVector::Distance(Start, End) / 2.0f;
 	FVector BoxHalfExtent = FVector(HalfLength, 5.0f, 5.0f);
-
-	// 3. 获取刀的朝向（从刀柄指向刀尖）
 	FRotator TraceRotation = (End - Start).Rotation();
 
 	TArray<AActor*> ActorsToIgnore;
@@ -98,11 +93,11 @@ void AWeapon::ExecuteWeaponTrace()
 
 	FHitResult HitPoint;
 
-	// 4. 真正的扫面：让代表整把刀的盒子，从上一帧的中心，扫到当前帧的中心！
+	// 盒体扫掠：连接相邻两帧路径，防止高速挥砍漏判
 	bool bHit = UKismetSystemLibrary::BoxTraceSingle(
 		this, OldCenter, CurrentCenter, BoxHalfExtent, TraceRotation,
-		UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::None, HitPoint,
-		true, FLinearColor::Red, FLinearColor::Green, 3.f);
+		UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame,
+		HitPoint, true, FLinearColor::Red, FLinearColor::Green, 3.f);
 
 	// 记录本帧位置，留给下帧做参考
 	TraceStartOld = Start;
@@ -113,11 +108,36 @@ void AWeapon::ExecuteWeaponTrace()
 		AActor* HitActor = HitPoint.GetActor();
 
 		UGameplayStatics::ApplyDamage(HitPoint.GetActor(), Damage, GetInstigatorController(), this,
-			UDamageType::StaticClass());
+		                              UDamageType::StaticClass());
 
 		if (HitActor->Implements<UHitInterface>())
 		{
 			IHitInterface::Execute_GetHit(HitActor, HitPoint.ImpactPoint, GetOwner());
+		}
+
+		// 触发摄像机震动反馈
+		if (HitCameraShake && GetInstigatorController())
+		{
+			if (APlayerController* PlayerController = Cast<APlayerController>(GetInstigatorController()))
+			{
+				PlayerController->ClientStartCameraShake(HitCameraShake);
+			}
+		}
+
+		// 触发卡肉感 (Hit Stop)
+		if (bEnableHitStop)
+		{
+			AActor* Attacker = GetOwner();
+			if (Attacker && HitActor)
+			{
+				Attacker->CustomTimeDilation = HitStopTimeDilation;
+				HitActor->CustomTimeDilation = HitStopTimeDilation;
+
+				FTimerHandle HitStopTimer;
+				FTimerDelegate TimerDel;
+				TimerDel.BindUFunction(this, FName("RestoreTimeDilation"), Attacker, HitActor);
+				GetWorld()->GetTimerManager().SetTimer(HitStopTimer, TimerDel, HitStopDuration, false);
+			}
 		}
 
 		// 击中一次后加入黑名单，防止同一刀造成多次伤害
@@ -136,4 +156,16 @@ void AWeapon::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
                             int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	Super::SphereOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
+}
+
+void AWeapon::RestoreTimeDilation(AActor* Attacker, AActor* Victim)
+{
+	if (Attacker)
+	{
+		Attacker->CustomTimeDilation = 1.0f;
+	}
+	if (Victim)
+	{
+		Victim->CustomTimeDilation = 1.0f;
+	}
 }

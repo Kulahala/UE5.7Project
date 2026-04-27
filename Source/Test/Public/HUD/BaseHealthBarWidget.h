@@ -18,15 +18,18 @@ class TEST_API UBaseHealthBarWidget : public UUserWidget
 public:
 	void SetHealthPercent(float Percent);
 
-protected:
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
+	void PlayFadeOutAnim();
 
-public:
+
 	UPROPERTY(meta = (BindWidget))
 	UProgressBar* PB_Health;
 
 	UPROPERTY(meta = (BindWidget))
 	UProgressBar* PB_Buffer;
+
+protected:
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
 	// 缓冲条追赶真实血条的速度

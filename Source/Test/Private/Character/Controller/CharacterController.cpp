@@ -34,6 +34,12 @@ void ACharacterController::SetupInputComponent()
 		EnhancedInputComponent->BindAction(EquipAction, ETriggerEvent::Started, this, &ACharacterController::Input_Equip);
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &ACharacterController::Input_Attack);
 		EnhancedInputComponent->BindAction(ArmAction, ETriggerEvent::Started, this, &ACharacterController::Input_Arm);
+
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ACharacterController::Input_SprintStart);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ACharacterController::Input_SprintEnd);
+
+		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &ACharacterController::Input_WalkStart);
+		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Completed, this, &ACharacterController::Input_WalkEnd);
 	}
 }
 
@@ -108,5 +114,37 @@ void ACharacterController::Input_Arm()
 	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
 	{
 		MyCharacter->ArmWeapon();
+	}
+}
+
+void ACharacterController::Input_SprintStart()
+{
+	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
+	{
+		MyCharacter->Sprint();
+	}
+}
+
+void ACharacterController::Input_SprintEnd()
+{
+	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
+	{
+		MyCharacter->StopSprinting();
+	}
+}
+
+void ACharacterController::Input_WalkStart()
+{
+	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
+	{
+		MyCharacter->Walk();
+	}
+}
+
+void ACharacterController::Input_WalkEnd()
+{
+	if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn()))
+	{
+		MyCharacter->StopWalking();
 	}
 }

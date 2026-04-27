@@ -39,6 +39,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Weaponproperties")
 	USoundBase* EquipSound;
 
+	// 击中时的摄像机震动
+	UPROPERTY(EditAnywhere, Category="Combat")
+	TSubclassOf<class UCameraShakeBase> HitCameraShake;
+
+	// 是否开启卡肉感 (Hit Stop)
+	UPROPERTY(EditAnywhere, Category="Combat")
+	bool bEnableHitStop = true;
+
+	// 卡肉持续时间（秒）
+	UPROPERTY(EditAnywhere, Category="Combat", meta = (EditCondition = "bEnableHitStop"))
+	float HitStopDuration = 0.05f;
+
+	// 卡肉时的时间流速（越接近 0 越像静止）
+	UPROPERTY(EditAnywhere, Category="Combat", meta = (EditCondition = "bEnableHitStop"))
+	float HitStopTimeDilation = 0.05f;
+
+protected:
+	UFUNCTION()
+	void RestoreTimeDilation(AActor* Attacker, AActor* Victim);
+
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* BoxTraceStart;

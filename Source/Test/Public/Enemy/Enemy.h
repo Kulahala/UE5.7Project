@@ -8,6 +8,7 @@
 #include "Interfaces/HitInterface.h"
 #include "Enemy.generated.h"
 
+class AAIController;
 class UHealthBarComponent;
 class UWidgetComponent;
 class UAttributeComponent;
@@ -21,28 +22,26 @@ class TEST_API AEnemy : public ACharacter, public IHitInterface
 public:
 	AEnemy();
 
-	//重写受击接口
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
-
-	//计算受击方向
-	double GetHitDirection(FVector Forward, FVector ToHit);
-
-	//重写受伤函数
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)override;
-
-	//播放受击方向动画
+	double GetHitDirection(const FVector& Forward, const FVector& ToHit);
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 	void DirectionalHitReact(const FVector& ImpactPoint, AActor* HitInstigator);
-
-	//死亡逻辑
 	void Die();
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	//播放受击蒙太奇
 	void PlayHitReactMontage(const FName& SectionName);
+
+	// 血条延迟隐藏机制
+	FTimerHandle HealthBarHideTimer;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	float HealthBarDisplayTime = 4.0f;
+
+	void ShowHealthBar();
+	void HideHealthBar();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* HitReactMontage;
@@ -50,10 +49,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* DeathMontage;
 
-	UPROPERTY(EditAnywhere, Category="Sounds")
+	UPROPERTY(EditAnywhere, Category = "Sounds")
 	USoundBase* HitSound;
 
-	UPROPERTY(EditAnywhere, Category="Particle")
+	UPROPERTY(EditAnywhere, Category = "Particle")
 	UParticleSystem* HitParticle;
 
 private:
@@ -61,19 +60,32 @@ private:
 	UAttributeComponent* Attributes;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UHealthBarComponent* HealthBarWidgetComp;//角色蓝图组件
+	UHealthBarComponent* HealthBarWidgetComp;
 
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;
 
-	//仇恨目标
+	UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
+	float GroundSpeed;
+
+	//���Ŀ��
 	UPROPERTY()
 	AActor* CombatTarget;
 
-	//战斗半径
 	double CombatRadius = 500.f;
 
+	/*
+	 * Ѱ·
+	 */
+	//Ѳ��Ŀ��
+	UPROPERTY()
+	AAIController* EnemyController;
 
+	UPROPERTY(EditInstanceOnly,Category = "Navigation")
+	AActor* PatrolTarget;
+
+	UPROPERTY(EditInstanceOnly, Category = "Navigation")
+	TArray<AActor*>PatrolTargets;
 public:
 	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
 };
