@@ -22,8 +22,11 @@ enum class EArmWeaponState : uint8
 
 UENUM()
 enum class EEnemyState : uint8 {
+	EES_UnOccupied UMETA(DisplayName = "UnOccupied"), // 初始态
 	EES_Patrolling UMETA(DisplayName = "Patrolling"), // 巡逻中
 	EES_Chasing UMETA(DisplayName = "Chasing"),       // 追逐中
-	EES_Attacking UMETA(DisplayName = "Attacking"),   // 攻击中
+	EES_Attacking UMETA(DisplayName = "Attacking"),   // 攻击硬直
+	EES_Combating UMETA(DisplayName = "Combating"),	  // 战斗中
+	EES_Stunned UMETA(DisplayName = "Stunned"),       // 受击硬直
 	EES_Dead UMETA(DisplayName = "Dead")              // 已死亡
 };

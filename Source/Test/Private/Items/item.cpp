@@ -107,3 +107,8 @@ void Aitem::Tick(float DeltaTime)
 		AddActorWorldRotation(FRotator(0.f, RotationRate * DeltaTime, 0.f));
 	}
 }
+
+void Aitem::OnPickup_Implementation(AActor* Picker)
+{
+	// 默认空实现，由 Weapon/Treasure/Shield 等子类重写
+}

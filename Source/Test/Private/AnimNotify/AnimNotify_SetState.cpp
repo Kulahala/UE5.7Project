@@ -1,6 +1,7 @@
 #include "AnimNotify/AnimNotify_SetState.h"
 
 #include "Character/MyCharacter.h"
+#include "Enemy/Enemy.h"
 
 void UAnimNotify_SetActionState::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
@@ -22,6 +23,30 @@ void UAnimNotify_SetArmWeaponState::Notify(USkeletalMeshComponent* MeshComp, UAn
 		if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(MeshComp->GetOwner()))
 		{
 			MyCharacter->SetArmWeaponState(NewArmState);
+		}
+	}
+}
+
+void UAnimNotify_EnemyHitReactEnd::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+	Super::Notify(MeshComp, Animation, EventReference);
+	if (MeshComp && MeshComp->GetOwner())
+	{
+		if (AEnemy* Enemy = Cast<AEnemy>(MeshComp->GetOwner()))
+		{
+			Enemy->OnHitReactEnd();
+		}
+	}
+}
+
+void UAnimNotify_EnemyAttackEnd::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+	Super::Notify(MeshComp, Animation, EventReference);
+	if (MeshComp && MeshComp->GetOwner())
+	{
+		if (AEnemy* Enemy = Cast<AEnemy>(MeshComp->GetOwner()))
+		{
+			Enemy->OnAttackEnd();
 		}
 	}
 }

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Interfaces/PickupInterface.h"
 #include "item.generated.h"
 
 class USphereComponent;
@@ -12,7 +13,7 @@ UENUM()
 enum class EItemState : int8 { EIS_Spawning, EIS_Dropped, EIS_Equipped };
 
 UCLASS()
-class TEST_API Aitem : public AActor
+class TEST_API Aitem : public AActor, public IPickupInterface
 {
 	GENERATED_BODY()
 	
@@ -22,6 +23,8 @@ public:
 	// 开始抛物线生成
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	void StartSpawning(const FVector& Target);
+
+	virtual void OnPickup_Implementation(AActor* Picker) override;
 
 protected:
 	virtual void BeginPlay() override;

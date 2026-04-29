@@ -17,9 +17,12 @@ Build/
 # Plugins
 plugins/
 
-# Gemini CLI Configs
+# AI CLI Configs
+AGENTS.md
 GEMINI.md
 .geminiignore
+CLAUDE.md
+.claudeignore
 
 # Git-LFS S3 Adapter
 lfs-s3.exe

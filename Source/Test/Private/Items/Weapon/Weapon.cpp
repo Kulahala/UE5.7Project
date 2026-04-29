@@ -54,6 +54,14 @@ void AWeapon::Equip(USceneComponent* Parent, const FName& SocketName, AActor* Ne
 	}
 }
 
+void AWeapon::OnPickup_Implementation(AActor* Picker)
+{
+	if (AMyCharacter* Character = Cast<AMyCharacter>(Picker))
+	{
+		Equip(Character->GetMesh(), FName("RightHandSocket"), Character, Character);
+	}
+}
+
 void AWeapon::StartWeaponTrace()
 {
 	// 记录攻击刚开始时的初始位置

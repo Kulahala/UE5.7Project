@@ -19,4 +19,17 @@ class TEST_API IHitInterface
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat")
 	void GetHit(const FVector& ImpactPoint, AActor* HitInstigator);
+
+	// 纯数学工具：通过点积+叉积计算受击角度，返回 [-180, 180]
+	static double GetHitDirection(const FVector& Forward, const FVector& ToHit)
+	{
+		const double CosTheta = FVector::DotProduct(Forward, ToHit);
+		double Theta = FMath::RadiansToDegrees(FMath::Acos(CosTheta));
+		const FVector CrossProduct = FVector::CrossProduct(Forward, ToHit);
+		if (CrossProduct.Z < 0)
+		{
+			Theta *= -1.f;
+		}
+		return Theta;
+	}
 };

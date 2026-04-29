@@ -32,3 +32,23 @@ public:
 	EArmWeaponState NewArmState ;
 
 };
+
+// 专门用于结束 敌人受击硬直 的通知
+UCLASS()
+class TEST_API UAnimNotify_EnemyHitReactEnd : public UAnimNotify
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+};
+
+// 专门用于结束 敌人攻击状态 的通知
+UCLASS()
+class TEST_API UAnimNotify_EnemyAttackEnd : public UAnimNotify
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+};

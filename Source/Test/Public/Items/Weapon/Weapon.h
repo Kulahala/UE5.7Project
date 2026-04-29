@@ -17,6 +17,9 @@ public:
 	void AttachMeshToSocket(USceneComponent* Parent, const FName& SocketName);
 	void Equip(USceneComponent* Parent, const FName& SocketName, AActor* NewOwner, APawn* NewInstigator);
 
+	// IPickupInterface
+	virtual void OnPickup_Implementation(AActor* Picker) override;
+
 	// 开始检测：重置旧位置
 	void StartWeaponTrace();
 	// 执行检测：每帧调用

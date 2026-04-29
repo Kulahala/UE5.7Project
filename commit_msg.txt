@@ -1,0 +1,18 @@
+[Refactor & Feature] 重构敌人AI状态机与感知系统，完善战斗与拾取接口
+
+1. 动画与交互：
+- 创建攻击和受击的动画通知 (AnimNotifies)。
+- 将物品拾取逻辑重构为 IPickupInterface 接口，提升通用性。
+
+2. AI 感知系统升级 (AIPerception)：
+- 移除已废弃的 PawnSensingComponent，全面替换为现代的 AIPerceptionComponent。
+- 配置 UAISenseConfig_Sight，添加了 "Player" 标签过滤，防止同类敌人互相丢失目标或产生内斗。
+
+3. 状态机架构重构 (SetEnemyState)：
+- 细分敌人状态，引入 SetEnemyState() 作为状态切换的唯一“闸门”。
+- 将所有的“一次性事件”（如清理定时器、调用 MoveToTarget 寻路、停止移动）从 Tick 和各个散落的函数中抽离，统一交由 SetEnemyState 管理，彻底实现“状态驱动事件”。
+- 优化了 TakeDamage 和 Die 的逻辑，现在死亡与硬直完全受控于集中式状态机，避免了定时器残留和动画抽搐。
+
+4. 巡逻与追击逻辑修复：
+- 修复了 OnPatrolling 中导致敌人彻底罢工的逻辑取反错误 (!IsValid)。
+- 优化了追击 (Chasing) 逻辑：处理了玩家跑出 NavMesh 边界导致 AI 停留在 Idle 状态的断线重连问题，现在 AI 会在边界持续蹲守并尝试恢复追击。

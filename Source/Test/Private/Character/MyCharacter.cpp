@@ -100,11 +100,14 @@ void AMyCharacter::Tick(float DeltaTime)
 
 void AMyCharacter::Equip()
 {
-	AWeapon* OverlapWeapon = Cast<AWeapon>(OverLapItem);
-	if (OverlapWeapon && CharacterState == EWeaponState::ECS_Unequipped)
+	if (OverLapItem && OverLapItem->Implements<UPickupInterface>() && CharacterState == EWeaponState::ECS_Unequipped)
 	{
-		OverlapWeapon->Equip(GetMesh(), FName("RightHandSocket"),this,this);
-		EquippedWeapon = OverlapWeapon;
+		IPickupInterface::Execute_OnPickup(OverLapItem, this);
+
+		if (AWeapon* Weapon = Cast<AWeapon>(OverLapItem))
+		{
+			EquippedWeapon = Weapon;
+		}
 		CharacterState = EWeaponState::ECS_OneHandEquipped;
 		ArmWeaponState = EArmWeaponState::AWS_Arming;
 	}
