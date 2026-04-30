@@ -1,24 +1,130 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Character/BaseCharacter.h"
+#include "AttributeComponent/AttributeComponent.h"
+#include "Kismet/GameplayStatics.h"
+
+
+void ABaseCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
+{
+	IHitInterface::GetHit_Implementation(ImpactPoint, HitInstigator);
+	if (Attributes->IsAlive()) //存活
+	{
+		DirectionalHitReact(ImpactPoint, HitInstigator);
+	}
+
+	if (HitSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, HitSound, ImpactPoint);
+	}
+
+	if (HitParticle)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(this, HitParticle, ImpactPoint);
+	}
+}
+
+void ABaseCharacter::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator)
+{
+	//敌人的方向向量
+	const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
+
+	//受击来源方向
+	FVector ToHit;
+	if (HitInstigator)
+	{
+		//把攻击者所在的方向，作为受力判定的来源点
+		ToHit = (HitInstigator->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+	}
+	else
+	{
+		ToHit = (ImpactPoint - GetActorLocation()).GetSafeNormal2D();
+	}
+
+	//方向向量与受击方向向量夹角
+	double Theta = GetHitDirection(Forward, ToHit);
+	FName SectionName;
+	if (Theta >= -45.f && Theta <= 45.f)
+	{
+		SectionName = FName("FromFront");
+	}
+	else if (Theta > 45.f && Theta <= 135.f)
+	{
+		SectionName = FName("FromRight");
+	}
+	else if (Theta < -45.f && Theta >= -135.f)
+	{
+		SectionName = FName("FromLeft");
+	}
+	else
+	{
+		SectionName = FName("FromBack");
+	}
+	PlayHitReactMontage(SectionName);
+}
 
 ABaseCharacter::ABaseCharacter()
 {
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 	PrimaryActorTick.bCanEverTick = true;
 
+	Attributes = CreateDefaultSubobject<UAttributeComponent>(TEXT("Attributes"));
 }
 
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+}
+
+
+void ABaseCharacter::PlayAttackMontage(const FName& SectionName)
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && AttackMontage)
+	{
+		AnimInstance->Montage_Play(AttackMontage);
+		AnimInstance->Montage_JumpToSection(SectionName, AttackMontage);
+
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &ABaseCharacter::OnAttackMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, AttackMontage);
+	}
+}
+
+void ABaseCharacter::PlayHitReactMontage(const FName& SectionName)
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && HitReactMontage)
+	{
+		AnimInstance->Montage_Play(HitReactMontage);
+		AnimInstance->Montage_JumpToSection(SectionName, HitReactMontage);
+	}
+}
+
+bool ABaseCharacter::CanAttack() const
+{
+	return false;
+}
+
+
+void ABaseCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+}
+
+float ABaseCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
+                                 class AController* EventInstigator, AActor* DamageCauser)
+{
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
 void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
+void ABaseCharacter::Attack()
+{
+}
 
+void ABaseCharacter::Equip()
+{
+}

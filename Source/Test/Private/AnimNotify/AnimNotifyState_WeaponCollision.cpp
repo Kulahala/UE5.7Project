@@ -2,25 +2,24 @@
 
 
 #include "AnimNotify/AnimNotifyState_WeaponCollision.h"
-#include "Character/MyCharacter.h"
+#include "Character/BaseCharacter.h"
 #include "Items/Weapon/Weapon.h"
 
 void UAnimNotifyState_WeaponCollision::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
-	
-	if (MeshComp && MeshComp->GetOwner())
+
+	if (!MeshComp || !MeshComp->GetOwner()) return;
+
+	if (ABaseCharacter* Character = Cast<ABaseCharacter>(MeshComp->GetOwner()))
 	{
-		if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(MeshComp->GetOwner()))
+		if (AWeapon* Weapon = Character->GetWeapon())
 		{
-			if (AWeapon* Weapon = MyCharacter->GetWeapon())
-			{
-				// 挥砍开始，清空上一刀留下的黑名单，准备重新砍人
-				Weapon->IgnoreActors.Empty();
-				
-				// 记录刀的起始位置
-				Weapon->StartWeaponTrace();
-			}
+			// 挥砍开始，清空上一刀留下的黑名单，准备重新砍人
+			Weapon->IgnoreActors.Empty();
+
+			// 记录刀的起始位置
+			Weapon->StartWeaponTrace();
 		}
 	}
 }
@@ -29,15 +28,14 @@ void UAnimNotifyState_WeaponCollision::NotifyTick(USkeletalMeshComponent* MeshCo
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-	if (MeshComp && MeshComp->GetOwner())
+	if (!MeshComp || !MeshComp->GetOwner()) return;
+
+	if (ABaseCharacter* Character = Cast<ABaseCharacter>(MeshComp->GetOwner()))
 	{
-		if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(MeshComp->GetOwner()))
+		if (AWeapon* Weapon = Character->GetWeapon())
 		{
-			if (AWeapon* Weapon = MyCharacter->GetWeapon())
-			{
-				// 每一帧触发检测，确保不管刀挥多快都不会穿模
-				Weapon->ExecuteWeaponTrace();
-			}
+			// 每一帧触发检测，确保不管刀挥多快都不会穿模
+			Weapon->ExecuteWeaponTrace();
 		}
 	}
 }
@@ -45,16 +43,15 @@ void UAnimNotifyState_WeaponCollision::NotifyTick(USkeletalMeshComponent* MeshCo
 void UAnimNotifyState_WeaponCollision::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
-	
-	if (MeshComp && MeshComp->GetOwner())
+
+	if (!MeshComp || !MeshComp->GetOwner()) return;
+
+	if (ABaseCharacter* Character = Cast<ABaseCharacter>(MeshComp->GetOwner()))
 	{
-		if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(MeshComp->GetOwner()))
+		if (AWeapon* Weapon = Character->GetWeapon())
 		{
-			if (AWeapon* Weapon = MyCharacter->GetWeapon())
-			{
-				// 挥砍结束，再次清空一下防万一
-				Weapon->IgnoreActors.Empty();
-			}
+			// 挥砍结束，再次清空一下防万一
+			Weapon->IgnoreActors.Empty();
 		}
 	}
 }

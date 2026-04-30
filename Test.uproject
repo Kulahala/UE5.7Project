@@ -107,6 +107,10 @@
 		{
 			"Name": "PCG",
 			"Enabled": true
+		},
+		{
+			"Name": "BlueprintProfiler",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

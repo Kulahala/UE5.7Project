@@ -2,9 +2,7 @@
 
 #include "Character/MyCharacter.h"
 
-#include "AttributeComponent/AttributeComponent.h"
 #include "Camera/CameraComponent.h"
-#include "Character/SlashAniminstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Items/Weapon/Weapon.h"
@@ -14,10 +12,9 @@ AMyCharacter::AMyCharacter()
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationYaw = false;
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 600.f, 0.f);
 
-	PrimaryActorTick.bCanEverTick = true;
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArm->SetupAttachment(GetRootComponent());
@@ -25,8 +22,6 @@ AMyCharacter::AMyCharacter()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm);
-
-	Attributes = CreateDefaultSubobject<UAttributeComponent>(TEXT("Attributes"));
 }
 
 void AMyCharacter::BeginPlay()
@@ -38,6 +33,9 @@ void AMyCharacter::BeginPlay()
 void AMyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// 受击硬直期间锁死移动
+	if (ActionState == EActionState::EAS_Stunning) return;
 
 	// 获取当前速度并忽略Z轴（垂直掉落）
 	FVector Velocity = GetVelocity();
@@ -55,32 +53,32 @@ void AMyCharacter::Tick(float DeltaTime)
 		float DotProduct = FVector::DotProduct(Velocity.GetSafeNormal(), Forward.GetSafeNormal());
 
 		// 基础速度基准
-		float BaseSpeed = 300.f; 
-		
+		float BaseSpeed = 300.f;
+
 		// 状态提速：冲刺(Shift) vs 步行(Alt)
 		if (bIsSprinting && ActionState == EActionState::EAS_UnOccupied && DotProduct > 0.2f)
 		{
-			BaseSpeed = 450.f; 
+			BaseSpeed = 450.f;
 		}
 		else if (bIsWalking && ActionState == EActionState::EAS_UnOccupied)
 		{
-			BaseSpeed = 150.f; 
+			BaseSpeed = 150.f;
 		}
 
 		// 分段移速缩放：全速(前) -> 80%(侧) -> 65%(后)
-		if (DotProduct > 0.8f) 
-		{
-			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * SpeedMultiplier; 
-		}
-		else if (DotProduct > 0.2f) 
+		if (DotProduct > 0.8f)
 		{
 			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * SpeedMultiplier;
 		}
-		else if (DotProduct >= -0.2f) 
+		else if (DotProduct > 0.2f)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * SpeedMultiplier;
+		}
+		else if (DotProduct >= -0.2f)
 		{
 			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * 0.8f * SpeedMultiplier;
 		}
-		else 
+		else
 		{
 			GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * 0.65f * SpeedMultiplier;
 		}
@@ -113,22 +111,6 @@ void AMyCharacter::Equip()
 		ArmWeaponState = EArmWeaponState::AWS_Arming;
 	}
 }
-
-void AMyCharacter::Attack()
-{
-	if (CanAttack())
-	{
-		ActionState = EActionState::EAS_Attacking;
-		PlayAttackMontage();
-	}
-}
-
-bool AMyCharacter::CanAttack() const
-{
-	return ActionState == EActionState::EAS_UnOccupied && CharacterState != EWeaponState::ECS_Unequipped &&
-		ArmWeaponState == EArmWeaponState::AWS_Arming;
-}
-
 
 void AMyCharacter::ArmWeapon()
 {
@@ -177,19 +159,6 @@ void AMyCharacter::StopWalking()
 	bIsWalking = false;
 }
 
-void AMyCharacter::PlayAttackMontage()
-{
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (AnimInstance && AttackMontage)
-	{
-		AnimInstance->Montage_Play(AttackMontage);
-		AnimInstance->Montage_JumpToSection(FName("Attack2"), AttackMontage);
-
-		FOnMontageEnded EndDelegate;
-		EndDelegate.BindUObject(this, &AMyCharacter::OnAttackMontageEnded);
-		AnimInstance->Montage_SetEndDelegate(EndDelegate, AttackMontage);
-	}
-}
 
 void AMyCharacter::PlayArmMontage(const FName& SectionName)
 {
@@ -205,9 +174,25 @@ void AMyCharacter::PlayArmMontage(const FName& SectionName)
 	}
 }
 
-void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+void AMyCharacter::PlayAttackMontage(const FName& SectionName)
 {
-	ActionState = EActionState::EAS_UnOccupied;
+	Super::PlayAttackMontage(SectionName);
+}
+
+bool AMyCharacter::CanAttack() const
+{
+	return ActionState == EActionState::EAS_UnOccupied && CharacterState != EWeaponState::ECS_Unequipped &&
+		ArmWeaponState == EArmWeaponState::AWS_Arming;
+}
+
+void AMyCharacter::Attack()
+{
+	Super::Attack();
+	if (CanAttack())
+	{
+		ActionState = EActionState::EAS_Attacking;
+		PlayAttackMontage(FName("Attack2"));
+	}
 }
 
 void AMyCharacter::OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -221,4 +206,16 @@ void AMyCharacter::OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 	{
 		ArmWeaponState = EArmWeaponState::AWS_Arming;
 	}
+}
+
+void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	Super::OnAttackMontageEnded(Montage, bInterrupted);
+	ActionState = EActionState::EAS_UnOccupied;
+}
+
+void AMyCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
+{
+	Super::GetHit_Implementation(ImpactPoint, HitInstigator);
+	ActionState = EActionState::EAS_Stunning;
 }

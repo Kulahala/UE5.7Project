@@ -52,3 +52,13 @@ class TEST_API UAnimNotify_EnemyAttackEnd : public UAnimNotify
 public:
 	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 };
+
+// 专门用于结束 主角受击硬直 的通知
+UCLASS()
+class TEST_API UAnimNotify_CharacterHitReactEnd : public UAnimNotify
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+};

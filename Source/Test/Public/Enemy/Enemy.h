@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Character/BaseCharacter.h"
 #include "Character/CharacterTypes.h"
-#include "Interfaces/HitInterface.h"
 #include "Perception/AIPerceptionTypes.h"
 #include "Enemy.generated.h"
 
@@ -13,40 +12,37 @@ class UAIPerceptionComponent;
 class AAIController;
 class UHealthBarComponent;
 class UWidgetComponent;
-class UAttributeComponent;
-class UNiagaraSystem;
 
 UCLASS()
-class TEST_API AEnemy : public ABaseCharacter, public IHitInterface
+class TEST_API AEnemy : public ABaseCharacter
 {
 	GENERATED_BODY()
 
 public:
 	AEnemy();
-
-	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
-	                         class AController* EventInstigator, AActor* DamageCauser) override;  //受击逻辑
-	void DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator);
-	void Die(); //死亡演出
-
-	UFUNCTION(BlueprintCallable)
-	void OnHitReactEnd();//todo 受击动画结束回调
-
-	UFUNCTION(BlueprintCallable)
-	void OnAttackEnd();//todo 攻击动画结束回调
-
-protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override; //提取了
+	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
+	                         class AController* EventInstigator, AActor* DamageCauser) override; //受击逻辑 //提取了
+	virtual void DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator) override; //提取了
+	void Die(); //死亡演出
+
+	UFUNCTION(BlueprintCallable)
+	void OnHitReactEnd(); //todo 受击动画结束回调
+
+	UFUNCTION(BlueprintCallable)
+	void OnAttackEnd(); //todo 攻击动画结束回调
+
+protected:
 	void OnPatrolling(float DeltaTime); //巡逻逻辑
 	void CheckCombatTarget(); // 负责持续的状态切换
 	void SetEnemyState(EEnemyState NewState); // 状态机：处理进入/退出状态的一次性事件
 
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	void PlayHitReactMontage(const FName& SectionName);
-	bool BInTargetRange(AActor* Target, double Range)const;
+	virtual void PlayHitReactMontage(const FName& SectionName) override; //提取了
+	bool BInTargetRange(AActor* Target, double Range) const;
 	FTimerHandle HealthBarHideTimer; //血条延迟隐藏机制
 	void ShowHealthBar();
 	void HideHealthBar();
@@ -59,19 +55,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	float HealthBarDisplayTime = 4.0f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Montages")
-	UAnimMontage* HitReactMontage;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Montages")
-	UAnimMontage* DeathMontage;
-
-	UPROPERTY(EditAnywhere, Category = "Sounds")
-	USoundBase* HitSound;
-
-	UPROPERTY(EditAnywhere, Category = "Particle")
-	UParticleSystem* HitParticle;
-
-
 private:
 	/*
 	 *Components
@@ -79,12 +62,9 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAIPerceptionComponent* AIPerceptionComp;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UAttributeComponent* Attributes;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UHealthBarComponent* HealthBarWidgetComp;
-
 
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
@@ -101,8 +81,11 @@ private:
 	float ChasingRadius = 1000.f; //追击范围
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
-	float CombatingRadius = 150.f;//战斗范围
-	
+	float CombatingRadius = 100.f; //战斗范围
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	AWeapon* AssignedWeapon; // 编辑器指定武器，BeginPlay自动装备
+
 	/*
 	 * 巡逻
 	 */
@@ -122,7 +105,7 @@ private:
 	float PatrolRadius = 200.f;
 
 	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
-	TArray<AActor*>PatrolTargets;
+	TArray<AActor*> PatrolTargets;
 
 	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
 	float PatrolWaitMin = 4.f;
@@ -140,9 +123,4 @@ private:
 	void GenerateNewLookRotation();
 
 	FRotator PatrolWaitTargetRotation;
-
-	
-
-public:
-	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
 };

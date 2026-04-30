@@ -50,3 +50,15 @@ void UAnimNotify_EnemyAttackEnd::Notify(USkeletalMeshComponent* MeshComp, UAnimS
 		}
 	}
 }
+
+void UAnimNotify_CharacterHitReactEnd::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+	Super::Notify(MeshComp, Animation, EventReference);
+	if (MeshComp && MeshComp->GetOwner())
+	{
+		if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(MeshComp->GetOwner()))
+		{
+			MyCharacter->SetActionState(EActionState::EAS_UnOccupied);
+		}
+	}
+}
