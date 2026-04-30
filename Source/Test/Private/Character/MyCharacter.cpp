@@ -32,6 +32,7 @@ AMyCharacter::AMyCharacter()
 void AMyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	Tags.Add(FName("Player"));
 }
 
 void AMyCharacter::Tick(float DeltaTime)

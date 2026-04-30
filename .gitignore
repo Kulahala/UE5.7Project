@@ -9,6 +9,7 @@ Build/
 *.sln
 *.suo
 *.user
+*.vsconfig
 *.userosscache
 *.sln.doccache
 *.opendb
@@ -22,9 +23,12 @@ AGENTS.md
 GEMINI.md
 .geminiignore
 CLAUDE.md
+.claude/
 .claudeignore
 
 # Git-LFS S3 Adapter
 lfs-s3.exe
 lfs-s3.tar.gz
 #setup_lfs.ps1
+/test.xlsx
+/test.csv

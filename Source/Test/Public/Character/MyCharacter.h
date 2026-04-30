@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
+#include "BaseCharacter.h"
 #include "Character/CharacterTypes.h"
 #include "MyCharacter.generated.h"
 
@@ -14,7 +14,7 @@ class USpringArmComponent;
 class UCameraComponent;
 
 UCLASS()
-class TEST_API AMyCharacter : public ACharacter
+class TEST_API AMyCharacter : public ABaseCharacter
 {
 	GENERATED_BODY()
 
@@ -22,8 +22,8 @@ public:
 	AMyCharacter();
 
 	void Equip();
-	void Attack();
-	void ArmWeapon();
+	void Attack(); //提取
+	void ArmWeapon(); 
 	void Sprint();
 	void StopSprinting();
 	void Walk();
@@ -34,22 +34,22 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 
 	//播放攻击动画
-	void PlayAttackMontage();
+	void PlayAttackMontage(); //提取
 
 	//动画结束通知
-	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted); //提取
 	void OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	//播放武器装备和卸下装备动画
 	void PlayArmMontage(const FName& SectionName);
 
-	bool CanAttack() const;
+	bool CanAttack() const; //提取
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* ArmMontage;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
-	UAnimMontage* AttackMontage;
+	UAnimMontage* AttackMontage;  //提取
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
@@ -59,7 +59,7 @@ private:
 	USpringArmComponent* SpringArm;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UAttributeComponent* Attributes;
+	UAttributeComponent* Attributes; //提取
 
 	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	Aitem* OverLapItem;
@@ -82,6 +82,9 @@ private:
 	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
 
 public:
+	/*
+	 *Getters and Setters
+	 */
 	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
 	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
 	FORCEINLINE EWeaponState GetCharacterState() const { return CharacterState; }

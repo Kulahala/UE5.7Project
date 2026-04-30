@@ -14,11 +14,6 @@ void UAttributeComponent::ReceiveDamage(float Damage)
 	CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.f, MaxHealth);
 	
 	OnHealthChanged.Broadcast(GetHealthPercent());
-
-	if (CurrentHealth == 0)
-	{
-		//TODO À¿Õˆ
-	}
 }
 
 void UAttributeComponent::BeginPlay()

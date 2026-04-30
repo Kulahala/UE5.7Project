@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Character/BaseCharacter.h"
 #include "Character/CharacterTypes.h"
-#include "GameFramework/Character.h"
 #include "Interfaces/HitInterface.h"
 #include "Perception/AIPerceptionTypes.h"
 #include "Enemy.generated.h"
@@ -17,7 +17,7 @@ class UAttributeComponent;
 class UNiagaraSystem;
 
 UCLASS()
-class TEST_API AEnemy : public ACharacter, public IHitInterface
+class TEST_API AEnemy : public ABaseCharacter, public IHitInterface
 {
 	GENERATED_BODY()
 
@@ -39,6 +39,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	void OnPatrolling(float DeltaTime); //巡逻逻辑
 	void CheckCombatTarget(); // 负责持续的状态切换
 	void SetEnemyState(EEnemyState NewState); // 状态机：处理进入/退出状态的一次性事件
@@ -100,7 +101,7 @@ private:
 	float ChasingRadius = 1000.f; //追击范围
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
-	float AttackingRadius = 200.f;//战斗范围
+	float CombatingRadius = 150.f;//战斗范围
 	
 	/*
 	 * 巡逻

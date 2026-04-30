@@ -35,8 +35,8 @@ AEnemy::AEnemy()
 
 	AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerceptionComp"));
 	UAISenseConfig_Sight* SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
-	SightConfig->SightRadius = 1800.f;
-	SightConfig->LoseSightRadius = 2000.f;
+	SightConfig->SightRadius = ChasingRadius;
+	SightConfig->LoseSightRadius = ChasingRadius + 200.f;
 	SightConfig->PeripheralVisionAngleDegrees = 40.f;
 	SightConfig->DetectionByAffiliation.bDetectEnemies = true;
 	SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
@@ -45,7 +45,7 @@ AEnemy::AEnemy()
 	AIPerceptionComp->SetDominantSense(SightConfig->GetSenseImplementation());
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->MaxWalkSpeed = 330;
+	GetCharacterMovement()->MaxWalkSpeed = 150;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationPitch = false;
@@ -140,14 +140,11 @@ void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitIn
 
 void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
 {
-	// 1. 清理血条倒计时
+	ClearPatrolTimers();
 	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
 
 	// 2. 停止移动
-	if (EnemyController)
-	{
-		EnemyController->StopMovement();
-	}
+	if (EnemyController)EnemyController->StopMovement();
 
 	// 3. 关闭碰撞
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -177,6 +174,14 @@ void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
 
 	// 6. 设定销毁时间
 	SetLifeSpan(5.f);
+}
+
+// 兜底：定时器全量清理，覆盖 Die() 未执行的路径（关卡切换、编辑器 Stop 等）
+void AEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	ClearPatrolTimers();
+	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
+	Super::EndPlay(EndPlayReason);
 }
 
 void AEnemy::OnHitReactEnd()
@@ -323,14 +328,20 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 	switch (EnemyState)
 	{
 	case EEnemyState::EES_Chasing:
+		GetCharacterMovement()->MaxWalkSpeed = 330;
 		// 切入追击瞬间，只需下达一次寻路指令
 		MoveToTarget(ChasingTarget);
 		break;
+	case EEnemyState::EES_Combating:
+		// 切入战斗状态瞬间，停止寻路移动，准备攻击或绕前
+		if (EnemyController) EnemyController->StopMovement();
+		break;
 	case EEnemyState::EES_Attacking:
-		// 切入攻击瞬间，停止寻路移动
+		// 攻击硬直状态，确保不移动
 		if (EnemyController) EnemyController->StopMovement();
 		break;
 	case EEnemyState::EES_Patrolling:
+		GetCharacterMovement()->MaxWalkSpeed = 150;
 		MoveToTarget(PatrolTarget);
 		break;
 	case EEnemyState::EES_Stunned:
@@ -353,11 +364,12 @@ void AEnemy::CheckCombatTarget()
 		SetEnemyState(EEnemyState::EES_Patrolling);
 		return;
 	}
-
-	if (BInTargetRange(ChasingTarget, AttackingRadius))
+	//进入战斗范围
+	if (BInTargetRange(ChasingTarget, CombatingRadius))
 	{
 		SetEnemyState(EEnemyState::EES_Combating);
 	}
+	//不在战斗范围，在追逐范围
 	else if (BInTargetRange(ChasingTarget, ChasingRadius))
 	{
 		SetEnemyState(EEnemyState::EES_Chasing);
