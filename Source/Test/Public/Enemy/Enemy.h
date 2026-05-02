@@ -43,7 +43,7 @@ public:
 
 protected:
 	/* AI状态机 */
-	void CheckCombatTarget(); // 持续检测战斗目标并切换状态
+	void CheckCombatTarget(); // 根据目标距离决定战斗/追击/巡逻
 	void SetEnemyState(EEnemyState NewState); // 处理进入/退出状态的一次性事件
 	void OnPatrolling(float DeltaTime); // 巡逻Tick逻辑
 	void OnChasing(); // 追逐Tick逻辑
@@ -79,13 +79,6 @@ private:
 	/* 状态 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EEnemyState EnemyState = EEnemyState::EES_UnOccupied;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
-	float GroundSpeed; // 动画蓝图用的地速
-
-	UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
-	float Direction; // 移动方向（-180~180，用于 BlendSpace）
-
 
 	/* 战斗属性 */
 	UPROPERTY(VisibleInstanceOnly)
@@ -170,6 +163,7 @@ private:
 	bool bAttackOnCooldown = false; // 攻击冷却中
 	void PatrolTimerFinished(); // 等待结束回调
 	void ClearPatrolTimers(); // 清理巡逻相关定时器
+	void ClearAllTimers(); // 清理所有定时器（巡逻 + 冷却 + 血条）
 	void GenerateNewLookRotation(); // 生成新的张望方向
 	AActor* ChooseRadomTarget(const TArray<AActor*>& TargetArray); // 随机选择巡逻点
 	FRotator PatrolWaitTargetRotation; // 张望目标旋转

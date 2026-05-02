@@ -20,7 +20,7 @@ The project follows a decoupled, component-based architecture to ensure scalabil
 2. **Interaction & Combat**
    - **Weapon System**: Frame-accurate collision detection using sweep-based box tracing. Supports `EquipRotationOffset` for weapon model orientation correction.
    - **Interface-Driven Interaction**: Uses `IHitInterface` to handle combat interactions across different actor types.
-   - **Enemy AI**: Full `EEnemyState` FSM (Patrolling/Chasing/Combating/Attacking/Stunned/Dead) with perception, facing verification before attack, and 2D BlendSpace-driven locomotion.
+   - **Enemy AI**: Full `EEnemyState` FSM with perception, facing verification before attack, attack cooldown system, and 2D BlendSpace-driven locomotion. See [State Machine Flow](#state-machine-flow) below.
    - **Combat Distance System**: Three radii (`ChasingRadius`/`CombatingRadius`/`PatrolRadius`) control AI behavior transitions, with `AcceptanceRadius` compensating for target capsule radius.
 
 ### 🧠 Key Technical & Algorithmic Highlights
@@ -49,7 +49,7 @@ The project follows a decoupled, component-based architecture to ensure scalabil
 2. **交互与战斗系统**
    - **武器系统**：通过记录前一帧位置并进行盒体扫掠（Box Trace Sweep），实现跨帧的精确碰撞检测，消除高速挥砍时的漏判。支持装备旋转偏移（`EquipRotationOffset`）修正不同武器模型的朝向差异。
    - **接口驱动交互**：利用 `IHitInterface` 统一处理不同类型 Actor（敌人、可破坏物）的受击效果、粒子与音效。
-   - **敌人 AI**：基于 `EEnemyState` 状态机（巡逻/追击/战斗/攻击/受击/死亡），支持完整的战斗流程：感知追击 → 面朝校验 → 攻击 → 硬直恢复。巡逻阶段使用平滑旋转张望，追击阶段使用 2D BlendSpace（Speed × Direction）驱动移动动画。
+   - **敌人 AI**：基于 `EEnemyState` 状态机，支持完整的战斗流程：感知追击 → 面朝校验 → 攻击 → 冷却等待 → 硬直恢复。巡逻阶段使用平滑旋转张望，追击阶段使用 2D BlendSpace（Speed × Direction）驱动移动动画。攻击冷却从攻击开始计算，让追击时间重叠冷却，体感更紧凑。
    - **战斗距离系统**：三个半径（`ChasingRadius`/`CombatingRadius`/`PatrolRadius`）控制 AI 行为切换，`MoveToTarget` 的 `AcceptanceRadius` 补偿目标胶囊体半径以精确停在战斗范围内。
 
 3. **环境与效果**
@@ -76,6 +76,98 @@ The project follows a decoupled, component-based architecture to ensure scalabil
 
 - **上半身动画分层 (Upper Body Animation Layering)**
   通过 Layered Blend Per Bone + Slot 节点实现移动中拔刀/收刀动画，由瞬态变量 `bIsArming` 控制混合权重，与持久状态 `ArmWeaponState` 分离。
+
+---
+
+<a name="state-machine-flow"></a>
+## 🔄 敌人状态机流转图 / Enemy State Machine Flow
+
+### 状态总览 / States
+
+| 状态 | 说明 |
+|------|------|
+| `EES_UnOccupied` | 初始状态，第一帧自动转为 Patrolling |
+| `EES_Patrolling` | 在巡逻点之间移动，到达后张望等待 |
+| `EES_Chasing` | 追击玩家，持续导航 |
+| `EES_Combating` | 进入战斗范围，面朝校验后攻击 |
+| `EES_Attacking` | 攻击蒙太奇播放中，锁定移动 |
+| `EES_Stunned` | 受击硬直，锁定移动 |
+| `EES_Dead` | 死亡演出，清理所有资源 |
+
+### 流转图 / Flow Diagram
+
+```
+                        ┌──────────────────────────────────────────────┐
+                        │              Tick() 每帧执行                 │
+                        │  ┌────────────────────────────────────────┐  │
+                        │  │ 守卫: Dead/Stunned/Attacking → return  │  │
+                        │  │ CheckCombatTarget() → 根据距离切换状态  │  │
+                        │  │ switch(状态) → 执行对应 Tick 逻辑       │  │
+                        │  └────────────────────────────────────────┘  │
+                        └──────────────────────────────────────────────┘
+
+    ┌─────────────┐   感知到玩家    ┌─────────────┐   进入CombatingRadius   ┌─────────────┐
+    │  Patrolling  │──────────────→│   Chasing    │─────────────────────→│  Combating   │
+    │              │←──────────────│              │←─────────────────────│              │
+    └──────────────┘  超出Chasing   └──────────────┘   超出CombatingRadius  └──────┬───────┘
+                ↑         Radius             ↑                                    │
+                │                            │                    面朝校验通过     │
+                │                            │              ┌─────────────────────┘
+                │                            │              ▼
+                │                            │       ┌─────────────┐
+                │                            │       │  Attacking  │
+                │                            │       └──────┬──────┘
+                │                            │              │
+                │                            │     OnAttackEnd()
+                │                            │     → CheckCombatTarget()
+                │                            │              │
+                │                            └──────────────┘
+                │
+    ┌───────────┴───────┐
+    │ 目标失效/超出范围  │
+    │ → ChasingTarget    │
+    │   = nullptr        │
+    └───────────────────┘
+
+    任意状态 ──(TakeDamage, 存活)──→ Stunned ──(OnHitReactEnd)──→ CheckCombatTarget()
+    任意状态 ──(TakeDamage, 死亡)──→ Dead
+
+    ┌─────────────┐
+    │   Stunned   │──→ OnHitReactEnd() → CheckCombatTarget() → Combating/Chasing/Patrolling
+    └─────────────┘
+
+    ┌─────────────┐
+    │ Attacking   │──→ OnAttackEnd() → CheckCombatTarget() → Combating/Chasing/Patrolling
+    └─────────────┘
+```
+
+### 攻击冷却机制 / Attack Cooldown
+
+```
+Attack() 被调用
+  ├─ bAttackOnCooldown = true
+  ├─ Timer: RandRange(MinAttackInterval, MaxAttackInterval)  // 默认 3~5 秒
+  ├─ SetEnemyState(EES_Attacking)
+  └─ PlayAttackMontage("Attack1")
+
+攻击蒙太奇结束 → OnAttackEnd() → CheckCombatTarget() → 可能立即回到 Combating
+                                              ↓
+                               但 CanAttack() 检查 bAttackOnCooldown
+                               冷却期内面朝玩家等待，冷却结束后才再次攻击
+
+冷却从"攻击开始"算起，追击时间重叠冷却 → 体感更紧凑
+```
+
+### 关键方法职责 / Key Method Responsibilities
+
+| 方法 | 调用时机 | 职责 |
+|------|----------|------|
+| `Tick()` | 每帧 | 守卫 + CheckCombatTarget + 状态 Tick |
+| `CheckCombatTarget()` | Tick / 蒙太奇结束 | 根据距离决定 Patrolling/Chasing/Combating |
+| `SetEnemyState()` | 状态切换时 | 退出旧状态清理 + 进入新状态初始化 |
+| `Attack()` | Combating 状态下面朝目标 | 启动冷却 + 切 Attacking + 播蒙太奇 |
+| `TakeDamage()` | 被攻击时 | 扣血 + 切 Stunned 或 Dead |
+| `Die()` | 进入 Dead 状态 | 清 Timer + 停移动 + 关碰撞 + 播死亡动画 |
 
 ---
 

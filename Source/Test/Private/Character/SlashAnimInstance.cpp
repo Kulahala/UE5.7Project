@@ -1,9 +1,7 @@
 #include "Character/SlashAnimInstance.h"
 
-#include "KismetAnimationLibrary.h"
 #include "Character/MyCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Kismet/KismetMathLibrary.h"
 
 void USlashAnimInstance::NativeInitializeAnimation()
 {
@@ -25,10 +23,11 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 
 	const FVector Velocity = CharacterMovement->Velocity;
-	GroundSpeed = Velocity.Size2D();
 	ZSpeed = Velocity.Z;
 
-	Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, MyCharacter->GetActorRotation());
+	GroundSpeed = MyCharacter->GetGroundSpeed();
+	Direction = MyCharacter->GetDirection();
+
 	IsFalling = CharacterMovement->IsFalling();
 
 

@@ -54,6 +54,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming; // 拔刀/收刀状态
 
+	/* 动画驱动变量 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
+	float GroundSpeed; // 地速（2D），驱动 BlendSpace
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
+	float Direction; // 移动方向（-180~180），驱动 BlendSpace
+
 	/* 组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAttributeComponent* Attributes; // 属性组件（血量、金币等）
@@ -72,6 +79,8 @@ protected:
 public:
 	FORCEINLINE AWeapon* GetWeapon() const { return EquippedWeapon; }
 	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
+	FORCEINLINE float GetGroundSpeed() const { return GroundSpeed; }
+	FORCEINLINE float GetDirection() const { return Direction; }
 	FORCEINLINE EWeaponState GetCharacterState() const { return CharacterState; }
 	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
 };

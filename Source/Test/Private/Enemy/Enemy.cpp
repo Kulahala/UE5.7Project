@@ -14,7 +14,6 @@
 #include "HUD/BaseHealthBarWidget.h"
 #include "HUD/HealthBarComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "KismetAnimationLibrary.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
@@ -118,9 +117,6 @@ void AEnemy::Tick(float DeltaTime)
 		return;
 	}
 
-	GroundSpeed = GetVelocity().Size2D();
-	Direction = UKismetAnimationLibrary::CalculateDirection(GetVelocity(), GetActorRotation());
-
 	if (ChasingTarget)
 	{
 		float Dist = FVector::Dist2D(GetActorLocation(), ChasingTarget->GetActorLocation());
@@ -150,9 +146,7 @@ void AEnemy::Tick(float DeltaTime)
 // 兜底：定时器全量清理，覆盖 Die() 未执行的路径（关卡切换、编辑器 Stop 等）
 void AEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ClearPatrolTimers();
-	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
-	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
+	ClearAllTimers();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -212,9 +206,7 @@ void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitIn
 
 void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
 {
-	ClearPatrolTimers();
-	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
-	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
+	ClearAllTimers();
 
 	// 2. 停止移动
 	if (EnemyController)
@@ -257,7 +249,7 @@ void AEnemy::OnHitReactEnd()
 	// 只有在硬直状态下才恢复，防止覆盖了死亡状态
 	if (EnemyState == EEnemyState::EES_Stunned)
 	{
-		SetEnemyState(EEnemyState::EES_Chasing); // 恢复追击，下一帧 Tick 就会重新测距
+		CheckCombatTarget();
 	}
 }
 
@@ -266,7 +258,7 @@ void AEnemy::OnAttackEnd()
 	// 只有在攻击状态下才恢复，防止覆盖了受击状态或死亡状态
 	if (EnemyState == EEnemyState::EES_Attacking)
 	{
-		SetEnemyState(EEnemyState::EES_Chasing); // 恢复追击，下一帧 Tick 就会重新测距
+		CheckCombatTarget();
 	}
 }
 
@@ -277,36 +269,23 @@ void AEnemy::OnAttackCooldownEnd()
 
 void AEnemy::CheckCombatTarget()
 {
-	if (EnemyState == EEnemyState::EES_Dead || EnemyState == EEnemyState::EES_Stunned || EnemyState ==
-		EEnemyState::EES_Attacking)
-	{
-		return;
-	}
-
 	if (!IsValid(ChasingTarget))
 	{
 		ChasingTarget = nullptr;
-	}
-
-	// 如果没有玩家，或者玩家死了，切回巡逻
-	if (!ChasingTarget)
-	{
 		SetEnemyState(EEnemyState::EES_Patrolling);
 		return;
 	}
-	//进入战斗范围
+
 	if (BInTargetRange(ChasingTarget, CombatingRadius))
 	{
 		SetEnemyState(EEnemyState::EES_Combating);
 	}
-	//不在战斗范围，在追逐范围
 	else if (BInTargetRange(ChasingTarget, ChasingRadius))
 	{
 		SetEnemyState(EEnemyState::EES_Chasing);
 	}
 	else
 	{
-		// 跑太远追丢了
 		ChasingTarget = nullptr;
 		SetEnemyState(EEnemyState::EES_Patrolling);
 	}
@@ -585,6 +564,13 @@ void AEnemy::ClearPatrolTimers()
 {
 	GetWorldTimerManager().ClearTimer(PatrolTimer);
 	GetWorldTimerManager().ClearTimer(LookTimer);
+}
+
+void AEnemy::ClearAllTimers()
+{
+	ClearPatrolTimers();
+	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
+	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
 }
 
 void AEnemy::GenerateNewLookRotation()

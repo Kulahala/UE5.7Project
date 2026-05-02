@@ -2,6 +2,7 @@
 #include "Character/BaseCharacter.h"
 #include "AttributeComponent/AttributeComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "KismetAnimationLibrary.h"
 
 
 ABaseCharacter::ABaseCharacter()
@@ -21,6 +22,9 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	GroundSpeed = GetVelocity().Size2D();
+	Direction = UKismetAnimationLibrary::CalculateDirection(GetVelocity(), GetActorRotation());
 }
 
 void ABaseCharacter::BeginPlay()
