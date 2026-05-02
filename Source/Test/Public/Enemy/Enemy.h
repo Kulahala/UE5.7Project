@@ -8,10 +8,12 @@
 #include "Perception/AIPerceptionTypes.h"
 #include "Enemy.generated.h"
 
+class AEnemy;
 class UAIPerceptionComponent;
 class AAIController;
 class UHealthBarComponent;
 class UWidgetComponent;
+
 
 UCLASS()
 class TEST_API AEnemy : public ABaseCharacter
@@ -44,6 +46,9 @@ protected:
 	void CheckCombatTarget(); // 持续检测战斗目标并切换状态
 	void SetEnemyState(EEnemyState NewState); // 处理进入/退出状态的一次性事件
 	void OnPatrolling(float DeltaTime); // 巡逻Tick逻辑
+	void OnChasing(); // 追逐Tick逻辑
+	void OnCombating(float DeltaTime); // 战斗Tick逻辑
+	void OnAttackCooldownEnd(); // 攻击冷却到期回调
 	void MoveToTarget(const AActor* Target); // 导航移动到目标
 	bool BInTargetRange(AActor* Target, double Range) const; // 检查目标是否在范围内
 
@@ -90,10 +95,42 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float ChasingRadius = 1000.f;
 
+	// 视野锥角（半角，总FOV = 此值 × 2）
+	UPROPERTY(EditAnywhere, Category = "Combat", meta = (ClampMin = "10", ClampMax = "180"))
+	float VisionAngleDegrees = 75.f;
+
 	// 战斗范围：目标进入此距离 → 停止追击，开始攻击
 	// 需大于 AI 实际能靠近的最小距离（受导航网格和胶囊体碰撞影响）
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float CombatingRadius = 200.f;
+
+	// 攻击面朝阈值：DotProduct > 此值才允许攻击（0.965 ≈ ±15°）
+	UPROPERTY(EditAnywhere, Category = "Combat", meta = (ClampMin = "0.5", ClampMax = "1.0"))
+	float AttackAngleThreshold = 0.965f;
+
+	// 战斗中转向目标的插值速度
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float CombatRotationSpeed = 6.f;
+
+	// 巡逻移动速度
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float PatrolSpeed = 150.f;
+
+	// 追击移动速度
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float ChaseSpeed = 330.f;
+
+	// 死亡后尸体销毁时间（秒）
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float CorpseLifespan = 5.f;
+
+	// 攻击最小间隔（秒，从攻击开始算）
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float MinAttackInterval = 3.f;
+
+	// 攻击最大间隔（秒，从攻击开始算）
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float MaxAttackInterval = 5.f;
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TSubclassOf<AWeapon> WeaponClass; // 选择武器类，BeginPlay自动生成
@@ -129,6 +166,8 @@ private:
 
 	FTimerHandle PatrolTimer; // 巡逻等待定时器
 	FTimerHandle LookTimer; // 张望定时器
+	FTimerHandle AttackCooldownTimer; // 攻击冷却定时器
+	bool bAttackOnCooldown = false; // 攻击冷却中
 	void PatrolTimerFinished(); // 等待结束回调
 	void ClearPatrolTimers(); // 清理巡逻相关定时器
 	void GenerateNewLookRotation(); // 生成新的张望方向

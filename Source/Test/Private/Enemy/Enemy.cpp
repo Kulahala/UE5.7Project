@@ -19,6 +19,18 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 
+static void DebugPrintEnemyState(const AEnemy* Enemy, float Dist, EEnemyState State, float GroundSpeed)
+{
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow,
+		                                 FString::Printf(
+			                                 TEXT("Dist: %.1f | State: %d | GroundSpeed: %.1f"), Dist,
+			                                 static_cast<int32>(State),
+			                                 GroundSpeed));
+	}
+}
+
 // Sets default values
 AEnemy::AEnemy()
 {
@@ -38,7 +50,7 @@ AEnemy::AEnemy()
 	UAISenseConfig_Sight* SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
 	SightConfig->SightRadius = ChasingRadius;
 	SightConfig->LoseSightRadius = ChasingRadius + 200.f;
-	SightConfig->PeripheralVisionAngleDegrees = 40.f;
+	SightConfig->PeripheralVisionAngleDegrees = VisionAngleDegrees;
 	SightConfig->DetectionByAffiliation.bDetectEnemies = true;
 	SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
 	SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
@@ -46,7 +58,7 @@ AEnemy::AEnemy()
 	AIPerceptionComp->SetDominantSense(SightConfig->GetSenseImplementation());
 
 	// 移动设置
-	GetCharacterMovement()->MaxWalkSpeed = 150;
+	GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
 }
 
 void AEnemy::BeginPlay()
@@ -96,25 +108,23 @@ void AEnemy::BeginPlay()
 	}
 }
 
-
 void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (EnemyState == EEnemyState::EES_Dead)return;
-
-	// 攻击/受击期间：完全锁死
-	if (EnemyState == EEnemyState::EES_Stunned || EnemyState == EEnemyState::EES_Attacking)return;
+	if (EnemyState == EEnemyState::EES_Dead || EnemyState == EEnemyState::EES_Stunned || EnemyState ==
+		EEnemyState::EES_Attacking)
+	{
+		return;
+	}
 
 	GroundSpeed = GetVelocity().Size2D();
 	Direction = UKismetAnimationLibrary::CalculateDirection(GetVelocity(), GetActorRotation());
 
-	// 调试：打印与目标距离和状态
-	if (ChasingTarget && GEngine)
+	if (ChasingTarget)
 	{
 		float Dist = FVector::Dist2D(GetActorLocation(), ChasingTarget->GetActorLocation());
-		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow,
-			FString::Printf(TEXT("Dist: %.1f | State: %d | GroundSpeed: %.1f"), Dist, (int32)EnemyState, GroundSpeed));
+		DebugPrintEnemyState(this, Dist, EnemyState, GroundSpeed);
 	}
 
 	// 1. 初步判断
@@ -127,29 +137,10 @@ void AEnemy::Tick(float DeltaTime)
 		OnPatrolling(DeltaTime);
 		break;
 	case EEnemyState::EES_Chasing:
-		// 玩家跑出网格体边缘时，AI 会走到边缘并停下（变为 Idle 状态）
-		// 如果此时玩家又回来了，我们需要重新激活寻路指令
-		if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
-		{
-			MoveToTarget(ChasingTarget);
-		}
+		OnChasing();
 		break;
 	case EEnemyState::EES_Combating:
-		if (ChasingTarget)
-		{
-			// 校验是否面朝目标，不够面向就先转
-			FVector ToTarget = (ChasingTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
-			float Dot = FVector::DotProduct(GetActorForwardVector().GetSafeNormal2D(), ToTarget);
-			if (Dot > 0.965f) // 约 ±15° 内才攻击
-			{
-				Attack();
-			}
-			else
-			{
-				FRotator TargetRot = ToTarget.Rotation();
-				SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRot, DeltaTime, 6.f));
-			}
-		}
+		OnCombating(DeltaTime);
 		break;
 	default:
 		break;
@@ -161,7 +152,24 @@ void AEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ClearPatrolTimers();
 	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
+	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
 	Super::EndPlay(EndPlayReason);
+}
+
+void AEnemy::Attack()
+{
+	if (!CanAttack())
+	{
+		return;
+	}
+
+	bAttackOnCooldown = true;
+	const float Cooldown = FMath::RandRange(MinAttackInterval, MaxAttackInterval);
+	GetWorldTimerManager().SetTimer(AttackCooldownTimer, this,
+		&AEnemy::OnAttackCooldownEnd, Cooldown, false);
+
+	SetEnemyState(EEnemyState::EES_Attacking);
+	PlayAttackMontage(FName("Attack1"));
 }
 
 void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
@@ -202,23 +210,11 @@ void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitIn
 	Super::DirectionalHitReact(ImpactPoint, HitInstigator);
 }
 
-void AEnemy::Attack()
-{
-	if (!CanAttack()) return;
-
-	SetEnemyState(EEnemyState::EES_Attacking);
-	PlayAttackMontage(FName("Attack1"));
-}
-
-bool AEnemy::CanAttack() const
-{
-	return EnemyState == EEnemyState::EES_Combating;
-}
-
 void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
 {
 	ClearPatrolTimers();
 	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
+	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
 
 	// 2. 停止移动
 	if (EnemyController)
@@ -253,7 +249,7 @@ void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
 	}
 
 	// 6. 设定销毁时间
-	SetLifeSpan(5.f);
+	SetLifeSpan(CorpseLifespan);
 }
 
 void AEnemy::OnHitReactEnd()
@@ -274,8 +270,24 @@ void AEnemy::OnAttackEnd()
 	}
 }
 
+void AEnemy::OnAttackCooldownEnd()
+{
+	bAttackOnCooldown = false;
+}
+
 void AEnemy::CheckCombatTarget()
 {
+	if (EnemyState == EEnemyState::EES_Dead || EnemyState == EEnemyState::EES_Stunned || EnemyState ==
+		EEnemyState::EES_Attacking)
+	{
+		return;
+	}
+
+	if (!IsValid(ChasingTarget))
+	{
+		ChasingTarget = nullptr;
+	}
+
 	// 如果没有玩家，或者玩家死了，切回巡逻
 	if (!ChasingTarget)
 	{
@@ -321,7 +333,7 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 	switch (EnemyState)
 	{
 	case EEnemyState::EES_Chasing:
-		GetCharacterMovement()->MaxWalkSpeed = 330;
+		GetCharacterMovement()->MaxWalkSpeed = ChaseSpeed;
 		// 切入追击瞬间，只需下达一次寻路指令
 		MoveToTarget(ChasingTarget);
 		break;
@@ -336,7 +348,7 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 		}
 		break;
 	case EEnemyState::EES_Patrolling:
-		GetCharacterMovement()->MaxWalkSpeed = 150;
+		GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
 		MoveToTarget(PatrolTarget);
 		break;
 	case EEnemyState::EES_Stunned:
@@ -392,6 +404,36 @@ void AEnemy::OnPatrolling(float DeltaTime)
 	}
 }
 
+
+void AEnemy::OnChasing()
+{
+	// 玩家跑出网格体边缘时，AI 会走到边缘并停下（变为 Idle 状态）
+	// 如果此时玩家又回来了，我们需要重新激活寻路指令
+	if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
+	{
+		MoveToTarget(ChasingTarget);
+	}
+}
+
+void AEnemy::OnCombating(float DeltaTime)
+{
+	if (ChasingTarget)
+	{
+		// 校验是否面朝目标，不够面向就先转
+		FVector ToTarget = (ChasingTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+		float Dot = FVector::DotProduct(GetActorForwardVector().GetSafeNormal2D(), ToTarget);
+		if (Dot > AttackAngleThreshold)
+		{
+			Attack();
+		}
+		else
+		{
+			FRotator TargetRot = ToTarget.Rotation();
+			SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRot, DeltaTime, CombatRotationSpeed));
+		}
+	}
+}
+
 void AEnemy::MoveToTarget(const AActor* Target)
 {
 	if (!EnemyController || !Target)
@@ -405,8 +447,8 @@ void AEnemy::MoveToTarget(const AActor* Target)
 	// 追击：减去目标胶囊体半径 + 精度余量，让中心距 ≈ CombatingRadius
 	// 巡逻：保持原逻辑
 	float StopRadius = (Target == ChasingTarget)
-		? FMath::Max(15.f, CombatingRadius - Target->GetSimpleCollisionRadius() - 10.f)
-		: FMath::Max(15.f, PatrolRadius - 50.f);
+		                   ? FMath::Max(15.f, CombatingRadius - Target->GetSimpleCollisionRadius() - 10.f)
+		                   : FMath::Max(15.f, PatrolRadius - 50.f);
 
 	MoveRequest.SetAcceptanceRadius(StopRadius);
 	MoveRequest.SetUsePathfinding(true);
@@ -422,6 +464,11 @@ bool AEnemy::BInTargetRange(AActor* Target, double Range) const
 	}
 	double Distance = (Target->GetActorLocation() - GetActorLocation()).SizeSquared2D();
 	return Distance <= FMath::Square(Range);
+}
+
+bool AEnemy::CanAttack() const
+{
+	return EnemyState == EEnemyState::EES_Combating && !bAttackOnCooldown;
 }
 
 void AEnemy::PlayHitReactMontage(const FName& SectionName)
