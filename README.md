@@ -96,64 +96,66 @@ The project follows a decoupled, component-based architecture to ensure scalabil
 
 ### 流转图 / Flow Diagram
 
+```mermaid
+stateDiagram-v2
+    [*] --> Patrolling
+
+    Patrolling --> Chasing : player perceived
+    Chasing --> Combating : enter CombatingRadius
+    Combating --> Chasing : beyond CombatingRadius
+    Chasing --> Patrolling : target lost / out of range
+
+    Combating --> Attacking : facing OK (DotProduct > threshold)
+    Attacking --> Chasing : OnAttackEnd() -> CheckCombatTarget()
+
+    Patrolling --> Stunned : TakeDamage (alive)
+    Chasing --> Stunned : TakeDamage (alive)
+    Combating --> Stunned : TakeDamage (alive)
+    Attacking --> Stunned : TakeDamage (alive)
+
+    Stunned --> Chasing : OnHitReactEnd() -> CheckCombatTarget()
+
+    Patrolling --> Dead : TakeDamage (dead)
+    Chasing --> Dead : TakeDamage (dead)
+    Combating --> Dead : TakeDamage (dead)
+    Attacking --> Dead : TakeDamage (dead)
+    Stunned --> Dead : TakeDamage (dead)
 ```
-+--------------------------------------------+
-|            Tick() every frame              |
-|  +--------------------------------------+  |
-|  | Guard: Dead/Stunned/Attacking -> skip|  |
-|  | CheckCombatTarget() -> decide state  |  |
-|  | switch(state) -> run state tick      |  |
-|  +--------------------------------------+  |
-+--------------------------------------------+
 
-+-------------+  perception   +-------------+ enter CombatingR +-------------+
-|  Patrolling |-------------->|   Chasing   |----------------->|  Combating  |
-|             |<--------------|             |<-----------------|             |
-+-------------+  beyond Chase +-------------+  beyond Combat R +------+------+
-                 Radius                                   facing OK  |
-                                                        +-------------+
-                                                        v
-                                                 +-------------+
-                                                 |  Attacking  |
-                                                 +------+------+
-                                                        |
-                                               OnAttackEnd()
-                                               -> CheckCombatTarget()
-                                                        |
-                               +------------------------+
-                               |
-+------------------------------+------+
-| target lost or out of range       |
-| ChasingTarget = nullptr           |
-+-----------------------------------+
+### Tick 每帧流程 / Per-Frame Flow
 
-Any state --(TakeDamage, alive)--> Stunned --(OnHitReactEnd)--> CheckCombatTarget()
-Any state --(TakeDamage, dead) ---> Dead
-
-+-------------+
-|   Stunned   |--> OnHitReactEnd() -> CheckCombatTarget()
-+-------------+
-
-+-------------+
-|  Attacking  |--> OnAttackEnd() -> CheckCombatTarget()
-+-------------+
+```mermaid
+flowchart TD
+    A[Tick] --> B{State Guard}
+    B -->|Dead / Stunned / Attacking| C[return - skip frame]
+    B -->|other states| D[CheckCombatTarget]
+    D --> E{distance check}
+    E -->|within CombatingRadius| F[Set Combating]
+    E -->|within ChasingRadius| G[Set Chasing]
+    E -->|out of range| H[Set Patrolling]
+    F --> I{switch state}
+    G --> I
+    H --> I
+    I --> J[OnPatrolling]
+    I --> K[OnChasing]
+    I --> L[OnCombating]
+    L --> M{facing check}
+    M -->|DotProduct > threshold| N[Attack]
+    M -->|not facing| O[Rotate toward target]
 ```
 
 ### 攻击冷却机制 / Attack Cooldown
 
-```
-Attack() called
-  +-- bAttackOnCooldown = true
-  +-- Timer: RandRange(MinAttackInterval, MaxAttackInterval)  // default 3~5s
-  +-- SetEnemyState(EES_Attacking)
-  +-- PlayAttackMontage("Attack1")
-
-Montage end -> OnAttackEnd() -> CheckCombatTarget() -> may return to Combating
-                                              |
-                               but CanAttack() checks bAttackOnCooldown
-                               during cooldown: face player and wait
-
-Cooldown starts from Attack(), chase time overlaps cooldown -> tighter feel
+```mermaid
+flowchart LR
+    A[Attack] --> B[bAttackOnCooldown = true]
+    B --> C[Timer 3-5s]
+    C --> D[Set Attacking + Play Montage]
+    D --> E[Montage End]
+    E --> F[CheckCombatTarget]
+    F --> G{cooldown?}
+    G -->|expired| H[can Attack again]
+    G -->|active| I[face player, wait]
 ```
 
 ### 关键方法职责 / Key Method Responsibilities
