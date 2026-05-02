@@ -17,46 +17,52 @@ class TEST_API AMyCharacter : public ABaseCharacter
 	GENERATED_BODY()
 
 public:
+	/* 生命周期 */
 	AMyCharacter();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 
+	/* 战斗 */
+	virtual void Attack() override;
+	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
+
+	/* 装备 */
 	virtual void Equip() override;
-	void ArmWeapon();
+	void ArmWeapon(); // 切换拔刀/收刀
+
+	/* 移动状态 */
 	void Sprint();
 	void StopSprinting();
 	void Walk();
 	void StopWalking();
-
-	virtual void Attack() override;
-	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
+	void UpdateMovementSpeed(); // 每帧根据方向/状态动态调整移速
 
 protected:
-	//动画结束通知
-	void OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted);
-	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted) override;
-
-	//播放武器装备和卸下装备动画
-	void PlayArmMontage(const FName& SectionName);
-	//播放主角攻击动画
+	/* 蒙太奇 */
 	virtual void PlayAttackMontage(const FName& SectionName) override;
+	void PlayArmMontage(const FName& SectionName); // 播放拔刀/收刀动画
 	virtual bool CanAttack() const override;
+	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted) override;
+	void OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
-	UAnimMontage* ArmMontage;
+	UAnimMontage* ArmMontage; // 拔刀/收刀蒙太奇
 
+	/* 动作状态 */
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_UnOccupied;
 
 private:
+	/* 相机组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* Camera;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* SpringArm;
 
+	/* 状态 */
 	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
-	Aitem* OverLapItem;
+	Aitem* OverLapItem; // 当前重叠的可拾取物品
 
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	bool bIsSprinting = false;
@@ -64,10 +70,10 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
 
+	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	bool bIsArming = false; // 是否正在播放切刀/拔刀蒙太奇（短暂状态）
+
 public:
-	/*
-	 *Getters and Setters
-	 */
 	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }
 	FORCEINLINE Aitem* GetEquippedItem() const { return OverLapItem; }
 	FORCEINLINE void SetActionState(const EActionState NewState) { ActionState = NewState; }
@@ -75,4 +81,5 @@ public:
 	FORCEINLINE UCameraComponent* GetCamera() const { return Camera; }
 	FORCEINLINE USpringArmComponent* GetSpringArm() const { return SpringArm; }
 	FORCEINLINE EActionState GetActionState() const { return ActionState; }
+	FORCEINLINE bool IsArming() const { return bIsArming; }
 };

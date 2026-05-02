@@ -4,6 +4,30 @@
 #include "Kismet/GameplayStatics.h"
 
 
+ABaseCharacter::ABaseCharacter()
+{
+	// 旋转设置：关闭控制器旋转，启用面向移动方向
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationRoll = false;
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+
+	PrimaryActorTick.bCanEverTick = true;
+
+	// 属性组件
+	Attributes = CreateDefaultSubobject<UAttributeComponent>(TEXT("Attributes"));
+}
+
+void ABaseCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+}
+
+void ABaseCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
 void ABaseCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
 {
 	IHitInterface::GetHit_Implementation(ImpactPoint, HitInstigator);
@@ -21,6 +45,13 @@ void ABaseCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* H
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(this, HitParticle, ImpactPoint);
 	}
+}
+
+
+float ABaseCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
+                                 class AController* EventInstigator, AActor* DamageCauser)
+{
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
 void ABaseCharacter::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator)
@@ -62,19 +93,14 @@ void ABaseCharacter::DirectionalHitReact(const FVector& ImpactPoint, const AActo
 	PlayHitReactMontage(SectionName);
 }
 
-ABaseCharacter::ABaseCharacter()
+void ABaseCharacter::Attack()
 {
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	PrimaryActorTick.bCanEverTick = true;
-
-	Attributes = CreateDefaultSubobject<UAttributeComponent>(TEXT("Attributes"));
 }
 
-void ABaseCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-}
 
+void ABaseCharacter::Equip()
+{
+}
 
 void ABaseCharacter::PlayAttackMontage(const FName& SectionName)
 {
@@ -105,26 +131,6 @@ bool ABaseCharacter::CanAttack() const
 	return false;
 }
 
-
 void ABaseCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
-{
-}
-
-float ABaseCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
-                                 class AController* EventInstigator, AActor* DamageCauser)
-{
-	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-}
-
-void ABaseCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-void ABaseCharacter::Attack()
-{
-}
-
-void ABaseCharacter::Equip()
 {
 }

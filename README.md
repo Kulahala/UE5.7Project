@@ -18,15 +18,18 @@ The project follows a decoupled, component-based architecture to ensure scalabil
    - **Attribute System**: A standalone `UAttributeComponent` managing health, stamina, and progression data.
 
 2. **Interaction & Combat**
-   - **Weapon System**: Frame-accurate collision detection using sweep-based box tracing.
+   - **Weapon System**: Frame-accurate collision detection using sweep-based box tracing. Supports `EquipRotationOffset` for weapon model orientation correction.
    - **Interface-Driven Interaction**: Uses `IHitInterface` to handle combat interactions across different actor types.
-   - **Enemy AI**: State-aware NPCs with directional hit reactions.
+   - **Enemy AI**: Full `EEnemyState` FSM (Patrolling/Chasing/Combating/Attacking/Stunned/Dead) with perception, facing verification before attack, and 2D BlendSpace-driven locomotion.
+   - **Combat Distance System**: Three radii (`ChasingRadius`/`CombatingRadius`/`PatrolRadius`) control AI behavior transitions, with `AcceptanceRadius` compensating for target capsule radius.
 
 ### 🧠 Key Technical & Algorithmic Highlights
 
 - **Precise Collision Sweeping**: Implements **Box Trace Sweep** between `OldCenter` and `CurrentCenter` to prevent "ghost swings" at high speeds.
 - **Directional Locomotion**: Uses `DotProduct(Velocity, ActorForward)` to scale speed: Forward (1.0x), Strafe (0.8x), Backwards (0.65x).
 - **Health Buffer Visuals**: Implements a delayed buffer bar effect for better visual clarity on damage received.
+- **Enemy Attack Pipeline**: Combat state facing verification (DotProduct ±15°) before attack, with full movement lock during attack montage.
+- **Upper Body Animation Layering**: Layered Blend Per Bone + Slot node for weapon arming/disarming while moving, controlled by transient `bIsArming` state.
 
 ---
 
@@ -44,9 +47,10 @@ The project follows a decoupled, component-based architecture to ensure scalabil
    - **属性系统 (Attribute)**：独立的 `UAttributeComponent` 负责生命值、金币等数据管理，与表现层完全解耦。
 
 2. **交互与战斗系统**
-   - **武器系统**：通过记录前一帧位置并进行盒体扫掠（Box Trace Sweep），实现跨帧的精确碰撞检测，消除高速挥砍时的漏判。
+   - **武器系统**：通过记录前一帧位置并进行盒体扫掠（Box Trace Sweep），实现跨帧的精确碰撞检测，消除高速挥砍时的漏判。支持装备旋转偏移（`EquipRotationOffset`）修正不同武器模型的朝向差异。
    - **接口驱动交互**：利用 `IHitInterface` 统一处理不同类型 Actor（敌人、可破坏物）的受击效果、粒子与音效。
-   - **敌人 AI**：具备状态感知的 NPC，支持基于受击点方向的动态受击反馈（HitReact）。
+   - **敌人 AI**：基于 `EEnemyState` 状态机（巡逻/追击/战斗/攻击/受击/死亡），支持完整的战斗流程：感知追击 → 面朝校验 → 攻击 → 硬直恢复。巡逻阶段使用平滑旋转张望，追击阶段使用 2D BlendSpace（Speed × Direction）驱动移动动画。
+   - **战斗距离系统**：三个半径（`ChasingRadius`/`CombatingRadius`/`PatrolRadius`）控制 AI 行为切换，`MoveToTarget` 的 `AcceptanceRadius` 补偿目标胶囊体半径以精确停在战斗范围内。
 
 3. **环境与效果**
    - **破碎系统**：集成 Chaos 物理几何体集（Geometry Collections），实现环境的真实破坏效果。
@@ -65,7 +69,13 @@ The project follows a decoupled, component-based architecture to ensure scalabil
   - **后退移动 (<-0.8)**：速度降至基准的 65%，模拟真实的负重感。
 
 - **血条缓冲视觉逻辑 (Health Buffer)**
-  UI 实现了现代动作游戏中常见的“残影血条”效果：受击时主血条立即扣除，缓冲条经过短暂延迟后通过 `FMath::FInterpTo` 平滑追随，增强了受击时的视觉冲击力。
+  UI 实现了现代动作游戏中常见的”残影血条”效果：受击时主血条立即扣除，缓冲条经过短暂延迟后通过 `FMath::FInterpTo` 平滑追随，增强了受击时的视觉冲击力。
+
+- **敌人攻击流水线 (Enemy Attack Pipeline)**
+  战斗状态下先通过 `DotProduct` 校验面朝角度（±15°），满足条件才触发攻击。攻击蒙太奇期间完全锁定移动与旋转，结束后回到追击状态重新逼近。
+
+- **上半身动画分层 (Upper Body Animation Layering)**
+  通过 Layered Blend Per Bone + Slot 节点实现移动中拔刀/收刀动画，由瞬态变量 `bIsArming` 控制混合权重，与持久状态 `ArmWeaponState` 分离。
 
 ---
 

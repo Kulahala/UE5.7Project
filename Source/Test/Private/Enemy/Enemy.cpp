@@ -14,6 +14,7 @@
 #include "HUD/BaseHealthBarWidget.h"
 #include "HUD/HealthBarComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "KismetAnimationLibrary.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
@@ -21,16 +22,18 @@
 // Sets default values
 AEnemy::AEnemy()
 {
+	// 碰撞设置
 	GetMesh()->SetCollisionObjectType(ECC_Pawn);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Overlap);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetGenerateOverlapEvents(true);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
-
+	// 血条组件
 	HealthBarWidgetComp = CreateDefaultSubobject<UHealthBarComponent>(TEXT("HealthBar"));
 	HealthBarWidgetComp->SetupAttachment(RootComponent);
 
+	// AI感知构造
 	AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerceptionComp"));
 	UAISenseConfig_Sight* SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
 	SightConfig->SightRadius = ChasingRadius;
@@ -42,10 +45,123 @@ AEnemy::AEnemy()
 	AIPerceptionComp->ConfigureSense(*SightConfig);
 	AIPerceptionComp->SetDominantSense(SightConfig->GetSenseImplementation());
 
+	// 移动设置
 	GetCharacterMovement()->MaxWalkSpeed = 150;
-	bUseControllerRotationYaw = false;
-	bUseControllerRotationRoll = false;
-	bUseControllerRotationPitch = false;
+}
+
+void AEnemy::BeginPlay()
+{
+	Super::BeginPlay();
+	if (HealthBarWidgetComp)
+	{
+		HealthBarWidgetComp->SetVisibility(false);
+	}
+	if (Attributes)
+	{
+		// 绑定广播：当血量改变时，自动调用血条更新
+		Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
+	}
+	if (AIPerceptionComp)
+	{
+		AIPerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &AEnemy::TargetPerceptionUpdated);
+	}
+
+	HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
+
+	// 添加出生点（将Z轴坐标下移到胶囊体底部，防止悬空导致后续寻路失败）
+	FVector SpawnLocation = GetActorLocation();
+	if (GetCapsuleComponent())
+	{
+		SpawnLocation.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	}
+
+	SpawnPoint = GetWorld()->SpawnActor<ATargetPoint>(ATargetPoint::StaticClass(), SpawnLocation, GetActorRotation());
+	if (SpawnPoint)
+	{
+		PatrolTargets.Add(SpawnPoint);
+		if (!PatrolTarget)
+		{
+			PatrolTarget = SpawnPoint;
+		}
+	}
+
+	EnemyController = Cast<AAIController>(GetController());
+
+	// 自动生成并装备武器
+	if (WeaponClass)
+	{
+		AWeapon* Weapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass);
+		Weapon->Equip(GetMesh(), FName("RightHandSocket"), this, this);
+		EquippedWeapon = Weapon;
+	}
+}
+
+
+void AEnemy::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (EnemyState == EEnemyState::EES_Dead)return;
+
+	// 攻击/受击期间：完全锁死
+	if (EnemyState == EEnemyState::EES_Stunned || EnemyState == EEnemyState::EES_Attacking)return;
+
+	GroundSpeed = GetVelocity().Size2D();
+	Direction = UKismetAnimationLibrary::CalculateDirection(GetVelocity(), GetActorRotation());
+
+	// 调试：打印与目标距离和状态
+	if (ChasingTarget && GEngine)
+	{
+		float Dist = FVector::Dist2D(GetActorLocation(), ChasingTarget->GetActorLocation());
+		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow,
+			FString::Printf(TEXT("Dist: %.1f | State: %d | GroundSpeed: %.1f"), Dist, (int32)EnemyState, GroundSpeed));
+	}
+
+	// 1. 初步判断
+	CheckCombatTarget();
+
+	// 2. 持续反应
+	switch (EnemyState)
+	{
+	case EEnemyState::EES_Patrolling:
+		OnPatrolling(DeltaTime);
+		break;
+	case EEnemyState::EES_Chasing:
+		// 玩家跑出网格体边缘时，AI 会走到边缘并停下（变为 Idle 状态）
+		// 如果此时玩家又回来了，我们需要重新激活寻路指令
+		if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
+		{
+			MoveToTarget(ChasingTarget);
+		}
+		break;
+	case EEnemyState::EES_Combating:
+		if (ChasingTarget)
+		{
+			// 校验是否面朝目标，不够面向就先转
+			FVector ToTarget = (ChasingTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+			float Dot = FVector::DotProduct(GetActorForwardVector().GetSafeNormal2D(), ToTarget);
+			if (Dot > 0.965f) // 约 ±15° 内才攻击
+			{
+				Attack();
+			}
+			else
+			{
+				FRotator TargetRot = ToTarget.Rotation();
+				SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRot, DeltaTime, 6.f));
+			}
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+// 兜底：定时器全量清理，覆盖 Die() 未执行的路径（关卡切换、编辑器 Stop 等）
+void AEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	ClearPatrolTimers();
+	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
+	Super::EndPlay(EndPlayReason);
 }
 
 void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
@@ -54,7 +170,6 @@ void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstig
 	Super::GetHit_Implementation(ImpactPoint, HitInstigator);
 	ShowHealthBar();
 }
-
 
 float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent, class AController* EventInstigator,
                          AActor* DamageCauser)
@@ -85,6 +200,19 @@ float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEv
 void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator)
 {
 	Super::DirectionalHitReact(ImpactPoint, HitInstigator);
+}
+
+void AEnemy::Attack()
+{
+	if (!CanAttack()) return;
+
+	SetEnemyState(EEnemyState::EES_Attacking);
+	PlayAttackMontage(FName("Attack1"));
+}
+
+bool AEnemy::CanAttack() const
+{
+	return EnemyState == EEnemyState::EES_Combating;
 }
 
 void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
@@ -128,14 +256,6 @@ void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
 	SetLifeSpan(5.f);
 }
 
-// 兜底：定时器全量清理，覆盖 Die() 未执行的路径（关卡切换、编辑器 Stop 等）
-void AEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	ClearPatrolTimers();
-	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
-	Super::EndPlay(EndPlayReason);
-}
-
 void AEnemy::OnHitReactEnd()
 {
 	// 只有在硬直状态下才恢复，防止覆盖了死亡状态
@@ -154,89 +274,80 @@ void AEnemy::OnAttackEnd()
 	}
 }
 
-void AEnemy::BeginPlay()
+void AEnemy::CheckCombatTarget()
 {
-	Super::BeginPlay();
-	if (HealthBarWidgetComp)
+	// 如果没有玩家，或者玩家死了，切回巡逻
+	if (!ChasingTarget)
 	{
-		HealthBarWidgetComp->SetVisibility(false);
+		SetEnemyState(EEnemyState::EES_Patrolling);
+		return;
 	}
-	if (Attributes)
+	//进入战斗范围
+	if (BInTargetRange(ChasingTarget, CombatingRadius))
 	{
-		// 绑定广播：当血量改变时，自动调用血条更新
-		Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
+		SetEnemyState(EEnemyState::EES_Combating);
 	}
-	if (AIPerceptionComp)
+	//不在战斗范围，在追逐范围
+	else if (BInTargetRange(ChasingTarget, ChasingRadius))
 	{
-		AIPerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &AEnemy::TargetPerceptionUpdated);
+		SetEnemyState(EEnemyState::EES_Chasing);
 	}
-
-	HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
-
-	// 添加出生点（将Z轴坐标下移到胶囊体底部，防止悬空导致后续寻路失败）
-	FVector SpawnLocation = GetActorLocation();
-	if (GetCapsuleComponent())
+	else
 	{
-		SpawnLocation.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	}
-
-	SpawnPoint = GetWorld()->SpawnActor<ATargetPoint>(ATargetPoint::StaticClass(), SpawnLocation, GetActorRotation());
-	if (SpawnPoint)
-	{
-		PatrolTargets.Add(SpawnPoint);
-		if (!PatrolTarget)
-		{
-			PatrolTarget = SpawnPoint;
-		}
-	}
-
-	EnemyController = Cast<AAIController>(GetController());
-
-	// 自动装备编辑器指定的武器
-	if (AssignedWeapon)
-	{
-		AssignedWeapon->Equip(GetMesh(), FName("RightHandSocket"), this, this);
-		EquippedWeapon = AssignedWeapon;
+		// 跑太远追丢了
+		ChasingTarget = nullptr;
+		SetEnemyState(EEnemyState::EES_Patrolling);
 	}
 }
 
-void AEnemy::Tick(float DeltaTime)
+void AEnemy::SetEnemyState(EEnemyState NewState)
 {
-	Super::Tick(DeltaTime);
-
-	if (EnemyState == EEnemyState::EES_Dead)
+	if (EnemyState == NewState)
 	{
 		return;
 	}
 
-	// 在播受击动画、或者在播攻击动画期间，直接锁死，什么脑子和手脚都不准动
-	if (EnemyState == EEnemyState::EES_Stunned || EnemyState == EEnemyState::EES_Attacking)
+	// --- 退出旧状态的逻辑 ---
+	if (EnemyState == EEnemyState::EES_Patrolling)
 	{
-		return;
+		ClearPatrolTimers();
+		GetCharacterMovement()->bOrientRotationToMovement = true;
 	}
 
-	GroundSpeed = GetVelocity().Size2D();
+	// --- 切换状态 ---
+	EnemyState = NewState;
 
-	// 1. 初步判断
-	CheckCombatTarget();
-
-	// 2. 持续反应
+	// --- 进入新状态的逻辑（一次性动作） ---
 	switch (EnemyState)
 	{
-	case EEnemyState::EES_Patrolling:
-		OnPatrolling(DeltaTime);
-		break;
 	case EEnemyState::EES_Chasing:
-		// 玩家跑出网格体边缘时，AI 会走到边缘并停下（变为 Idle 状态）
-		// 如果此时玩家又回来了，我们需要重新激活寻路指令
-		if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
-		{
-			MoveToTarget(ChasingTarget);
-		}
+		GetCharacterMovement()->MaxWalkSpeed = 330;
+		// 切入追击瞬间，只需下达一次寻路指令
+		MoveToTarget(ChasingTarget);
 		break;
 	case EEnemyState::EES_Combating:
-		// TODO 执行攻击行为 (比如 StartAttack() 播放挥剑动画)
-		//OnCombating();
+		// 不停止移动，让 AI 导航自然停在 CombatingRadius（AcceptanceRadius）距离
+		break;
+	case EEnemyState::EES_Attacking:
+		// 攻击硬直状态，确保不移动
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+		}
+		break;
+	case EEnemyState::EES_Patrolling:
+		GetCharacterMovement()->MaxWalkSpeed = 150;
+		MoveToTarget(PatrolTarget);
+		break;
+	case EEnemyState::EES_Stunned:
+		// 被打出硬直瞬间，立刻刹车防止滑步
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+		}
+		break;
+	case EEnemyState::EES_Dead:
+		Die();
 		break;
 	default:
 		break;
@@ -281,93 +392,26 @@ void AEnemy::OnPatrolling(float DeltaTime)
 	}
 }
 
-void AEnemy::SetEnemyState(EEnemyState NewState)
+void AEnemy::MoveToTarget(const AActor* Target)
 {
-	if (EnemyState == NewState)
+	if (!EnemyController || !Target)
 	{
 		return;
 	}
 
-	// --- 退出旧状态的逻辑 ---
-	if (EnemyState == EEnemyState::EES_Patrolling)
-	{
-		ClearPatrolTimers();
-		GetCharacterMovement()->bOrientRotationToMovement = true;
-	}
+	FAIMoveRequest MoveRequest;
+	MoveRequest.SetGoalActor(Target);
 
-	// --- 切换状态 ---
-	EnemyState = NewState;
+	// 追击：减去目标胶囊体半径 + 精度余量，让中心距 ≈ CombatingRadius
+	// 巡逻：保持原逻辑
+	float StopRadius = (Target == ChasingTarget)
+		? FMath::Max(15.f, CombatingRadius - Target->GetSimpleCollisionRadius() - 10.f)
+		: FMath::Max(15.f, PatrolRadius - 50.f);
 
-	// --- 进入新状态的逻辑（一次性动作） ---
-	switch (EnemyState)
-	{
-	case EEnemyState::EES_Chasing:
-		GetCharacterMovement()->MaxWalkSpeed = 330;
-		// 切入追击瞬间，只需下达一次寻路指令
-		MoveToTarget(ChasingTarget);
-		break;
-	case EEnemyState::EES_Combating:
-		// 切入战斗状态瞬间，停止寻路移动，准备攻击或绕前
-		if (EnemyController)
-		{
-			EnemyController->StopMovement();
-		}
-		break;
-	case EEnemyState::EES_Attacking:
-		// 攻击硬直状态，确保不移动
-		if (EnemyController)
-		{
-			EnemyController->StopMovement();
-		}
-		break;
-	case EEnemyState::EES_Patrolling:
-		GetCharacterMovement()->MaxWalkSpeed = 150;
-		MoveToTarget(PatrolTarget);
-		break;
-	case EEnemyState::EES_Stunned:
-		// 被打出硬直瞬间，立刻刹车防止滑步
-		if (EnemyController)
-		{
-			EnemyController->StopMovement();
-		}
-		break;
-	case EEnemyState::EES_Dead:
-		Die();
-		break;
-	default:
-		break;
-	}
-}
-
-void AEnemy::CheckCombatTarget()
-{
-	// 如果没有玩家，或者玩家死了，切回巡逻
-	if (!ChasingTarget)
-	{
-		SetEnemyState(EEnemyState::EES_Patrolling);
-		return;
-	}
-	//进入战斗范围
-	if (BInTargetRange(ChasingTarget, CombatingRadius))
-	{
-		SetEnemyState(EEnemyState::EES_Combating);
-	}
-	//不在战斗范围，在追逐范围
-	else if (BInTargetRange(ChasingTarget, ChasingRadius))
-	{
-		SetEnemyState(EEnemyState::EES_Chasing);
-	}
-	else
-	{
-		// 跑太远追丢了
-		ChasingTarget = nullptr;
-		SetEnemyState(EEnemyState::EES_Patrolling);
-	}
-}
-
-void AEnemy::PlayHitReactMontage(const FName& SectionName)
-{
-	Super::PlayHitReactMontage(SectionName);
+	MoveRequest.SetAcceptanceRadius(StopRadius);
+	MoveRequest.SetUsePathfinding(true);
+	MoveRequest.SetAllowPartialPath(true);
+	EnemyController->MoveTo(MoveRequest);
 }
 
 bool AEnemy::BInTargetRange(AActor* Target, double Range) const
@@ -378,6 +422,11 @@ bool AEnemy::BInTargetRange(AActor* Target, double Range) const
 	}
 	double Distance = (Target->GetActorLocation() - GetActorLocation()).SizeSquared2D();
 	return Distance <= FMath::Square(Range);
+}
+
+void AEnemy::PlayHitReactMontage(const FName& SectionName)
+{
+	Super::PlayHitReactMontage(SectionName);
 }
 
 void AEnemy::ShowHealthBar()
@@ -438,50 +487,31 @@ void AEnemy::HideHealthBar()
 	}
 }
 
-void AEnemy::MoveToTarget(const AActor* Target)
+void AEnemy::TargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
-	if (!EnemyController || !Target)
+	// 只处理“看到”的瞬间
+	if (!Stimulus.WasSuccessfullySensed())
 	{
 		return;
 	}
-
-	FAIMoveRequest MoveRequest;
-	MoveRequest.SetGoalActor(Target);
-
-	float StopRadius = FMath::Max(15.f, PatrolRadius - 50.f);
-
-	MoveRequest.SetAcceptanceRadius(StopRadius);
-	if (StopRadius >= PatrolRadius)
+	// 身份校验
+	if (!Actor || !Actor->ActorHasTag(FName("Player")))
 	{
-		ensureMsgf(false, TEXT("AEnemy: PatrolRadius (%.1f) 设定太小，请重新手动设定或程序自定设定"), PatrolRadius);
-		StopRadius = FMath::Max(0.f, PatrolRadius - 10.f);
+		return;
 	}
-	MoveRequest.SetUsePathfinding(true);
-	MoveRequest.SetAllowPartialPath(true);
-	EnemyController->MoveTo(MoveRequest);
-}
-
-AActor* AEnemy::ChooseRadomTarget(const TArray<AActor*>& TargetArray)
-{
-	TArray<AActor*> Candidates;
-	for (AActor* Target : TargetArray)
+	// 冗余校验
+	if (ChasingTarget == Actor)
 	{
-		if (Target == PatrolTarget)
-		{
-			continue;
-		}
-		if (!BInTargetRange(Target, PatrolRadius))
-		{
-			Candidates.AddUnique(Target);
-		}
+		return;
 	}
-
-	if (Candidates.Num() > 0)
+	// 专注度校验
+	if (EnemyState == EEnemyState::EES_Chasing || EnemyState == EEnemyState::EES_Attacking)
 	{
-		return Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+		return;
 	}
-
-	return nullptr;
+	// 锁定新目标
+	APawn* SeenPawn = dynamic_cast<APawn*>(Actor);
+	ChasingTarget = SeenPawn;
 }
 
 void AEnemy::PatrolTimerFinished()
@@ -510,35 +540,31 @@ void AEnemy::ClearPatrolTimers()
 	GetWorldTimerManager().ClearTimer(LookTimer);
 }
 
-void AEnemy::TargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
-{
-	// 只处理“看到”的瞬间
-	if (!Stimulus.WasSuccessfullySensed())
-	{
-		return;
-	}
-	// 身份校验
-	if (!Actor || !Actor->ActorHasTag(FName("Player")))
-	{
-		return;
-	}
-	// 冗余校验
-	if (ChasingTarget == Actor)
-	{
-		return;
-	}
-	// 专注度校验
-	if (EnemyState == EEnemyState::EES_Chasing || EnemyState == EEnemyState::EES_Attacking)
-	{
-		return;
-	}
-	// 锁定新目标
-	APawn* SeenPawn = dynamic_cast<APawn*>(Actor);
-	ChasingTarget = SeenPawn;
-}
-
 void AEnemy::GenerateNewLookRotation()
 {
 	float RandomYaw = FMath::RandRange(45.f, 120.f) * (FMath::RandBool() ? 1.f : -1.f);
 	PatrolWaitTargetRotation = GetActorRotation() + FRotator(0.f, RandomYaw, 0.f);
+}
+
+AActor* AEnemy::ChooseRadomTarget(const TArray<AActor*>& TargetArray)
+{
+	TArray<AActor*> Candidates;
+	for (AActor* Target : TargetArray)
+	{
+		if (Target == PatrolTarget)
+		{
+			continue;
+		}
+		if (!BInTargetRange(Target, PatrolRadius))
+		{
+			Candidates.AddUnique(Target);
+		}
+	}
+
+	if (Candidates.Num() > 0)
+	{
+		return Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+	}
+
+	return nullptr;
 }

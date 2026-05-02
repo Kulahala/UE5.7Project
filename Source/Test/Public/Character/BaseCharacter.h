@@ -17,53 +17,57 @@ class TEST_API ABaseCharacter : public ACharacter, public IHitInterface
 	GENERATED_BODY()
 
 public:
+	/* 生命周期 */
 	ABaseCharacter();
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
 
+	/* 战斗 */
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
-	virtual void DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator);
-
+	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
+	                         class AController* EventInstigator, AActor* DamageCauser) override; // 受击扣血逻辑
+	virtual void DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator); // 方向性受击反应
 	virtual void Attack();
 	virtual void Equip();
 
-	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
-	                         class AController* EventInstigator, AActor* DamageCauser) override; //受击逻辑
-
 protected:
-	//播放攻击动画
+	/* 蒙太奇 */
 	virtual void PlayAttackMontage(const FName& SectionName);
 	virtual void PlayHitReactMontage(const FName& SectionName);
 	virtual bool CanAttack() const;
-	//动画结束通知
 	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-	//攻击动画
+	/* 蒙太奇资源 */
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* AttackMontage;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* HitReactMontage;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")
 	UAnimMontage* DeathMontage;
 
+	/* 状态 */
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
-	EWeaponState CharacterState = EWeaponState::ECS_Unequipped;
+	EWeaponState CharacterState = EWeaponState::ECS_Unequipped; // 装备状态
 
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
-	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
+	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming; // 拔刀/收刀状态
 
+	/* 组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UAttributeComponent* Attributes;
+	UAttributeComponent* Attributes; // 属性组件（血量、金币等）
+
+	/* 受击效果 */
+	UPROPERTY(EditAnywhere, Category = "Effect")
+	USoundBase* HitSound; // 受击音效
 
 	UPROPERTY(EditAnywhere, Category = "Effect")
-	USoundBase* HitSound; //提取了
+	UParticleSystem* HitParticle; // 受击粒子
 
-	UPROPERTY(EditAnywhere, Category = "Effect")
-	UParticleSystem* HitParticle; //提取了
-
+	/* 武器 */
 	UPROPERTY()
-	AWeapon* EquippedWeapon;
+	AWeapon* EquippedWeapon; // 当前装备的武器
 
 public:
 	FORCEINLINE AWeapon* GetWeapon() const { return EquippedWeapon; }

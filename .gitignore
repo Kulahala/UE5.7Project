@@ -19,6 +19,8 @@ Build/
 plugins/
 
 # AI CLI Configs
+.playwright-mcp/
+.learnings/
 AGENTS.md
 GEMINI.md
 .geminiignore

@@ -44,4 +44,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	bool bIsArming = false; // 是否正在播放切刀/拔刀蒙太奇
+
 };

@@ -76,6 +76,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float Damage = 10.f;
 
+	/* 装备旋转偏移：修正不同武器模型的本地朝向差异，装备后叠加到Socket旋转上 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equip", meta = (AllowPrivateAccess = "true"))
+	FRotator EquipRotationOffset = FRotator::ZeroRotator;
+
 public:
 	FORCEINLINE USceneComponent* GetBoxTraceStart() const { return BoxTraceStart; }
 	FORCEINLINE USceneComponent* GetBoxTraceEnd() const { return BoxTraceEnd; }

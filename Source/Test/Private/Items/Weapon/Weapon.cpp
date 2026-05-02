@@ -27,6 +27,12 @@ void AWeapon::AttachMeshToSocket(USceneComponent* Parent, const FName& SocketNam
 {
 	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
 	AttachToComponent(Parent, AttachmentRules, SocketName);
+
+	// 叠加装备旋转偏移，修正不同武器模型的本地朝向差异
+	if (!EquipRotationOffset.IsNearlyZero())
+	{
+		SetActorRelativeRotation(EquipRotationOffset);
+	}
 }
 
 void AWeapon::Equip(USceneComponent* Parent, const FName& SocketName, AActor* NewOwner, APawn* NewInstigator)
