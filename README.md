@@ -97,65 +97,63 @@ The project follows a decoupled, component-based architecture to ensure scalabil
 ### 流转图 / Flow Diagram
 
 ```
-                        ┌──────────────────────────────────────────────┐
-                        │              Tick() 每帧执行                 │
-                        │  ┌────────────────────────────────────────┐  │
-                        │  │ 守卫: Dead/Stunned/Attacking → return  │  │
-                        │  │ CheckCombatTarget() → 根据距离切换状态  │  │
-                        │  │ switch(状态) → 执行对应 Tick 逻辑       │  │
-                        │  └────────────────────────────────────────┘  │
-                        └──────────────────────────────────────────────┘
++--------------------------------------------+
+|            Tick() every frame              |
+|  +--------------------------------------+  |
+|  | Guard: Dead/Stunned/Attacking -> skip|  |
+|  | CheckCombatTarget() -> decide state  |  |
+|  | switch(state) -> run state tick      |  |
+|  +--------------------------------------+  |
++--------------------------------------------+
 
-    ┌─────────────┐   感知到玩家    ┌─────────────┐   进入CombatingRadius   ┌─────────────┐
-    │  Patrolling  │──────────────→│   Chasing    │─────────────────────→│  Combating   │
-    │              │←──────────────│              │←─────────────────────│              │
-    └──────────────┘  超出Chasing   └──────────────┘   超出CombatingRadius  └──────┬───────┘
-                ↑         Radius             ↑                                    │
-                │                            │                    面朝校验通过     │
-                │                            │              ┌─────────────────────┘
-                │                            │              ▼
-                │                            │       ┌─────────────┐
-                │                            │       │  Attacking  │
-                │                            │       └──────┬──────┘
-                │                            │              │
-                │                            │     OnAttackEnd()
-                │                            │     → CheckCombatTarget()
-                │                            │              │
-                │                            └──────────────┘
-                │
-    ┌───────────┴───────┐
-    │ 目标失效/超出范围  │
-    │ → ChasingTarget    │
-    │   = nullptr        │
-    └───────────────────┘
++-------------+  perception   +-------------+ enter CombatingR +-------------+
+|  Patrolling |-------------->|   Chasing   |----------------->|  Combating  |
+|             |<--------------|             |<-----------------|             |
++-------------+  beyond Chase +-------------+  beyond Combat R +------+------+
+                 Radius                                   facing OK  |
+                                                        +-------------+
+                                                        v
+                                                 +-------------+
+                                                 |  Attacking  |
+                                                 +------+------+
+                                                        |
+                                               OnAttackEnd()
+                                               -> CheckCombatTarget()
+                                                        |
+                               +------------------------+
+                               |
++------------------------------+------+
+| target lost or out of range       |
+| ChasingTarget = nullptr           |
++-----------------------------------+
 
-    任意状态 ──(TakeDamage, 存活)──→ Stunned ──(OnHitReactEnd)──→ CheckCombatTarget()
-    任意状态 ──(TakeDamage, 死亡)──→ Dead
+Any state --(TakeDamage, alive)--> Stunned --(OnHitReactEnd)--> CheckCombatTarget()
+Any state --(TakeDamage, dead) ---> Dead
 
-    ┌─────────────┐
-    │   Stunned   │──→ OnHitReactEnd() → CheckCombatTarget() → Combating/Chasing/Patrolling
-    └─────────────┘
++-------------+
+|   Stunned   |--> OnHitReactEnd() -> CheckCombatTarget()
++-------------+
 
-    ┌─────────────┐
-    │ Attacking   │──→ OnAttackEnd() → CheckCombatTarget() → Combating/Chasing/Patrolling
-    └─────────────┘
++-------------+
+|  Attacking  |--> OnAttackEnd() -> CheckCombatTarget()
++-------------+
 ```
 
 ### 攻击冷却机制 / Attack Cooldown
 
 ```
-Attack() 被调用
-  ├─ bAttackOnCooldown = true
-  ├─ Timer: RandRange(MinAttackInterval, MaxAttackInterval)  // 默认 3~5 秒
-  ├─ SetEnemyState(EES_Attacking)
-  └─ PlayAttackMontage("Attack1")
+Attack() called
+  +-- bAttackOnCooldown = true
+  +-- Timer: RandRange(MinAttackInterval, MaxAttackInterval)  // default 3~5s
+  +-- SetEnemyState(EES_Attacking)
+  +-- PlayAttackMontage("Attack1")
 
-攻击蒙太奇结束 → OnAttackEnd() → CheckCombatTarget() → 可能立即回到 Combating
-                                              ↓
-                               但 CanAttack() 检查 bAttackOnCooldown
-                               冷却期内面朝玩家等待，冷却结束后才再次攻击
+Montage end -> OnAttackEnd() -> CheckCombatTarget() -> may return to Combating
+                                              |
+                               but CanAttack() checks bAttackOnCooldown
+                               during cooldown: face player and wait
 
-冷却从"攻击开始"算起，追击时间重叠冷却 → 体感更紧凑
+Cooldown starts from Attack(), chase time overlaps cooldown -> tighter feel
 ```
 
 ### 关键方法职责 / Key Method Responsibilities
