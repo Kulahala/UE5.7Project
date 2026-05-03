@@ -30,7 +30,8 @@ static void DebugPrintEnemyState(const AEnemy* Enemy, float Dist, EEnemyState St
 	}
 }
 
-// Sets default values
+// ==================== 生命周期 ====================
+
 AEnemy::AEnemy()
 {
 	// 碰撞设置
@@ -40,11 +41,14 @@ AEnemy::AEnemy()
 	GetMesh()->SetGenerateOverlapEvents(true);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
+	// 移动设置
+	GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
+
 	// 血条组件
 	HealthBarWidgetComp = CreateDefaultSubobject<UHealthBarComponent>(TEXT("HealthBar"));
 	HealthBarWidgetComp->SetupAttachment(RootComponent);
 
-	// AI感知构造
+	// AI感知
 	AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerceptionComp"));
 	UAISenseConfig_Sight* SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
 	SightConfig->SightRadius = ChasingRadius;
@@ -55,14 +59,14 @@ AEnemy::AEnemy()
 	SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
 	AIPerceptionComp->ConfigureSense(*SightConfig);
 	AIPerceptionComp->SetDominantSense(SightConfig->GetSenseImplementation());
-
-	// 移动设置
-	GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
 }
 
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
+	Tags.Add(FName("Enemy"));
+
+	// 血条
 	if (HealthBarWidgetComp)
 	{
 		HealthBarWidgetComp->SetVisibility(false);
@@ -71,15 +75,16 @@ void AEnemy::BeginPlay()
 	{
 		// 绑定广播：当血量改变时，自动调用血条更新
 		Attributes->OnHealthChanged.AddDynamic(HealthBarWidgetComp, &UHealthBarComponent::SetHealthPercent);
+		HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
 	}
+
+	// AI感知
 	if (AIPerceptionComp)
 	{
 		AIPerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &AEnemy::TargetPerceptionUpdated);
 	}
 
-	HealthBarWidgetComp->SetHealthPercent(Attributes->GetHealthPercent());
-
-	// 添加出生点（将Z轴坐标下移到胶囊体底部，防止悬空导致后续寻路失败）
+	// 出生点（将Z轴坐标下移到胶囊体底部，防止悬空导致后续寻路失败）
 	FVector SpawnLocation = GetActorLocation();
 	if (GetCapsuleComponent())
 	{
@@ -98,7 +103,7 @@ void AEnemy::BeginPlay()
 
 	EnemyController = Cast<AAIController>(GetController());
 
-	// 自动生成并装备武器
+	// 武器
 	if (WeaponClass)
 	{
 		AWeapon* Weapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass);
@@ -107,48 +112,101 @@ void AEnemy::BeginPlay()
 	}
 }
 
-void AEnemy::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	if (EnemyState == EEnemyState::EES_Dead || EnemyState == EEnemyState::EES_Stunned || EnemyState ==
-		EEnemyState::EES_Attacking)
-	{
-		return;
-	}
-
-	if (ChasingTarget)
-	{
-		float Dist = FVector::Dist2D(GetActorLocation(), ChasingTarget->GetActorLocation());
-		DebugPrintEnemyState(this, Dist, EnemyState, GroundSpeed);
-	}
-
-	// 1. 初步判断
-	CheckCombatTarget();
-
-	// 2. 持续反应
-	switch (EnemyState)
-	{
-	case EEnemyState::EES_Patrolling:
-		OnPatrolling(DeltaTime);
-		break;
-	case EEnemyState::EES_Chasing:
-		OnChasing();
-		break;
-	case EEnemyState::EES_Combating:
-		OnCombating(DeltaTime);
-		break;
-	default:
-		break;
-	}
-}
-
-// 兜底：定时器全量清理，覆盖 Die() 未执行的路径（关卡切换、编辑器 Stop 等）
 void AEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// 兜底：定时器全量清理，覆盖 Die() 未执行的路径（关卡切换、编辑器 Stop 等）
 	ClearAllTimers();
 	Super::EndPlay(EndPlayReason);
 }
+
+// ==================== 受击/死亡 ====================
+
+void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
+{
+	//DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 10, FColor::Red, false, 5.0f, 0, 0.5f);
+	Super::GetHit_Implementation(ImpactPoint, HitInstigator);
+	ShowHealthBar();
+
+	// 武器命中才触发硬直（DOT 不经过 GetHit，不会触发）
+	if (Attributes->IsAlive() && HitInstigator)
+	{
+		// 只锁定不同阵营的目标，防止被同类打到后锁定队友
+		bool bSameTeam = false;
+		for (const FName& Tag : Tags)
+		{
+			if (HitInstigator->ActorHasTag(Tag))
+			{
+				bSameTeam = true;
+				break;
+			}
+		}
+		if (!bSameTeam)
+		{
+			ChasingTarget = HitInstigator;
+		}
+		SetEnemyState(EEnemyState::EES_Stunned);
+	}
+}
+
+float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent, class AController* EventInstigator,
+                         AActor* DamageCauser)
+{
+	Attributes->ReceiveDamage(DamageAmount);
+
+	if (!Attributes->IsAlive())
+	{
+		SetEnemyState(EEnemyState::EES_Dead);
+	}
+
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+}
+
+void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator)
+{
+	Super::DirectionalHitReact(ImpactPoint, HitInstigator);
+}
+
+void AEnemy::Die()
+{
+	ClearAllTimers();
+
+	// 停止移动
+	if (EnemyController)
+	{
+		EnemyController->StopMovement();
+	}
+
+	// 关闭碰撞
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 清理附加物和UI
+	if (SpawnPoint)
+	{
+		SpawnPoint->Destroy();
+	}
+	HealthBarWidgetComp->SetVisibility(false);
+
+	// 播放死亡动画
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && DeathMontage)
+	{
+		//强制打断其他动画
+		AnimInstance->Montage_Stop(0.1f);
+
+		int32 RandomIndex = FMath::RandRange(1, 3);
+		FName SectionName = FName(FString::Printf(TEXT("Section%d"), RandomIndex));
+
+		AnimInstance->Montage_Play(DeathMontage);
+		AnimInstance->Montage_JumpToSection(SectionName, DeathMontage);
+	}
+
+	// 设定销毁时间
+	SetLifeSpan(CorpseLifespan);
+}
+
+// ==================== 攻击 ====================
 
 void AEnemy::Attack()
 {
@@ -166,83 +224,17 @@ void AEnemy::Attack()
 	PlayAttackMontage(FName("Attack1"));
 }
 
-void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
+bool AEnemy::CanAttack() const
 {
-	//DrawDebugSphere(this->GetWorld(), ImpactPoint, 5, 10, FColor::Red, false, 5.0f, 0, 0.5f);
-	Super::GetHit_Implementation(ImpactPoint, HitInstigator);
-	ShowHealthBar();
+	return EnemyState == EEnemyState::EES_Combating && !bAttackOnCooldown;
 }
 
-float AEnemy::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent, class AController* EventInstigator,
-                         AActor* DamageCauser)
+void AEnemy::PlayHitReactMontage(const FName& SectionName)
 {
-	Attributes->ReceiveDamage(DamageAmount);
-
-	if (Attributes->IsAlive())
-	{
-		//没死
-		AActor* DamagedActor = EventInstigator->GetPawn();
-		if (DamagedActor)
-		{
-			ChasingTarget = DamagedActor;
-
-			// 被打了脑子宕机，进入硬直状态。清理计时器等操作全部交由 SetEnemyState 处理
-			SetEnemyState(EEnemyState::EES_Stunned);
-		}
-	}
-	else
-	{
-		//死了
-		SetEnemyState(EEnemyState::EES_Dead);
-	}
-
-	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	Super::PlayHitReactMontage(SectionName);
 }
 
-void AEnemy::DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator)
-{
-	Super::DirectionalHitReact(ImpactPoint, HitInstigator);
-}
-
-void AEnemy::Die() //主要负责动画和死亡相关底层逻辑
-{
-	ClearAllTimers();
-
-	// 2. 停止移动
-	if (EnemyController)
-	{
-		EnemyController->StopMovement();
-	}
-
-	// 3. 关闭碰撞
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-	// 4. 清理附加物和UI
-	if (SpawnPoint)
-	{
-		SpawnPoint->Destroy();
-	}
-	HealthBarWidgetComp->SetVisibility(false);
-
-	// 5. 播放死亡动画
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (AnimInstance && DeathMontage)
-	{
-		//强制打断其他动画
-		AnimInstance->Montage_Stop(0.1f);
-
-		int32 RandomIndex = FMath::RandRange(1, 3);
-		FName SectionName = FName(FString::Printf(TEXT("Section%d"), RandomIndex));
-
-		AnimInstance->Montage_Play(DeathMontage);
-		AnimInstance->Montage_JumpToSection(SectionName, DeathMontage);
-	}
-
-	// 6. 设定销毁时间
-	SetLifeSpan(CorpseLifespan);
-}
+// ==================== 蒙太奇回调 ====================
 
 void AEnemy::OnHitReactEnd()
 {
@@ -266,6 +258,8 @@ void AEnemy::OnAttackCooldownEnd()
 {
 	bAttackOnCooldown = false;
 }
+
+// ==================== 状态机 ====================
 
 void AEnemy::CheckCombatTarget()
 {
@@ -311,9 +305,12 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 	// --- 进入新状态的逻辑（一次性动作） ---
 	switch (EnemyState)
 	{
+	case EEnemyState::EES_Patrolling:
+		GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
+		MoveToTarget(PatrolTarget);
+		break;
 	case EEnemyState::EES_Chasing:
 		GetCharacterMovement()->MaxWalkSpeed = ChaseSpeed;
-		// 切入追击瞬间，只需下达一次寻路指令
 		MoveToTarget(ChasingTarget);
 		break;
 	case EEnemyState::EES_Combating:
@@ -326,10 +323,6 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 			EnemyController->StopMovement();
 		}
 		break;
-	case EEnemyState::EES_Patrolling:
-		GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
-		MoveToTarget(PatrolTarget);
-		break;
 	case EEnemyState::EES_Stunned:
 		// 被打出硬直瞬间，立刻刹车防止滑步
 		if (EnemyController)
@@ -339,6 +332,73 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 		break;
 	case EEnemyState::EES_Dead:
 		Die();
+		break;
+	default:
+		break;
+	}
+}
+
+// ==================== AI感知 ====================
+
+void AEnemy::TargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
+{
+	// 只处理"看到"的瞬间
+	if (!Stimulus.WasSuccessfullySensed())
+	{
+		return;
+	}
+	// 身份校验
+	if (!Actor || !Actor->ActorHasTag(FName("Player")))
+	{
+		return;
+	}
+	// 冗余校验
+	if (ChasingTarget == Actor)
+	{
+		return;
+	}
+	// 专注度校验
+	if (EnemyState == EEnemyState::EES_Chasing || EnemyState == EEnemyState::EES_Attacking)
+	{
+		return;
+	}
+	// 锁定新目标
+	APawn* SeenPawn = dynamic_cast<APawn*>(Actor);
+	ChasingTarget = SeenPawn;
+}
+
+// ==================== AI Tick ====================
+
+void AEnemy::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (EnemyState == EEnemyState::EES_Dead || EnemyState == EEnemyState::EES_Stunned || EnemyState ==
+		EEnemyState::EES_Attacking)
+	{
+		return;
+	}
+
+	if (ChasingTarget)
+	{
+		float Dist = FVector::Dist2D(GetActorLocation(), ChasingTarget->GetActorLocation());
+		DebugPrintEnemyState(this, Dist, EnemyState, GroundSpeed);
+	}
+
+	// 1. 初步判断
+	CheckCombatTarget();
+
+	// 2. 持续反应
+	switch (EnemyState)
+	{
+	case EEnemyState::EES_Patrolling:
+		OnPatrolling(DeltaTime);
+		break;
+	case EEnemyState::EES_Chasing:
+		OnChasing();
+		break;
+	case EEnemyState::EES_Combating:
+		OnCombating(DeltaTime);
 		break;
 	default:
 		break;
@@ -383,7 +443,6 @@ void AEnemy::OnPatrolling(float DeltaTime)
 	}
 }
 
-
 void AEnemy::OnChasing()
 {
 	// 玩家跑出网格体边缘时，AI 会走到边缘并停下（变为 Idle 状态）
@@ -412,6 +471,8 @@ void AEnemy::OnCombating(float DeltaTime)
 		}
 	}
 }
+
+// ==================== 导航/工具 ====================
 
 void AEnemy::MoveToTarget(const AActor* Target)
 {
@@ -445,15 +506,7 @@ bool AEnemy::BInTargetRange(AActor* Target, double Range) const
 	return Distance <= FMath::Square(Range);
 }
 
-bool AEnemy::CanAttack() const
-{
-	return EnemyState == EEnemyState::EES_Combating && !bAttackOnCooldown;
-}
-
-void AEnemy::PlayHitReactMontage(const FName& SectionName)
-{
-	Super::PlayHitReactMontage(SectionName);
-}
+// ==================== 血条 ====================
 
 void AEnemy::ShowHealthBar()
 {
@@ -468,7 +521,7 @@ void AEnemy::ShowHealthBar()
 		}
 	}
 
-	// 每次调用都会重置 4 秒倒计时
+	// 每次调用都会重置倒计时
 	GetWorldTimerManager().SetTimer(
 		HealthBarHideTimer,
 		this,
@@ -513,32 +566,7 @@ void AEnemy::HideHealthBar()
 	}
 }
 
-void AEnemy::TargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
-{
-	// 只处理“看到”的瞬间
-	if (!Stimulus.WasSuccessfullySensed())
-	{
-		return;
-	}
-	// 身份校验
-	if (!Actor || !Actor->ActorHasTag(FName("Player")))
-	{
-		return;
-	}
-	// 冗余校验
-	if (ChasingTarget == Actor)
-	{
-		return;
-	}
-	// 专注度校验
-	if (EnemyState == EEnemyState::EES_Chasing || EnemyState == EEnemyState::EES_Attacking)
-	{
-		return;
-	}
-	// 锁定新目标
-	APawn* SeenPawn = dynamic_cast<APawn*>(Actor);
-	ChasingTarget = SeenPawn;
-}
+// ==================== 巡逻 ====================
 
 void AEnemy::PatrolTimerFinished()
 {
@@ -558,19 +586,6 @@ void AEnemy::PatrolTimerFinished()
 		GetWorldTimerManager().SetTimer(LookTimer, this, &AEnemy::GenerateNewLookRotation, SingleLookTime, true);
 		GenerateNewLookRotation();
 	}
-}
-
-void AEnemy::ClearPatrolTimers()
-{
-	GetWorldTimerManager().ClearTimer(PatrolTimer);
-	GetWorldTimerManager().ClearTimer(LookTimer);
-}
-
-void AEnemy::ClearAllTimers()
-{
-	ClearPatrolTimers();
-	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
-	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
 }
 
 void AEnemy::GenerateNewLookRotation()
@@ -600,4 +615,19 @@ AActor* AEnemy::ChooseRadomTarget(const TArray<AActor*>& TargetArray)
 	}
 
 	return nullptr;
+}
+
+// ==================== 定时器清理 ====================
+
+void AEnemy::ClearPatrolTimers()
+{
+	GetWorldTimerManager().ClearTimer(PatrolTimer);
+	GetWorldTimerManager().ClearTimer(LookTimer);
+}
+
+void AEnemy::ClearAllTimers()
+{
+	ClearPatrolTimers();
+	GetWorldTimerManager().ClearTimer(HealthBarHideTimer);
+	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
 }

@@ -4,6 +4,8 @@
 #include "Components/SphereComponent.h"
 #include "NiagaraComponent.h"
 
+// ==================== 生命周期 ====================
+
 Aitem::Aitem()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -13,19 +15,18 @@ Aitem::Aitem()
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetupAttachment(Root);
-	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
 	Sphere = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
 	Sphere->SetGenerateOverlapEvents(true);
 	Sphere->SetupAttachment(RootComponent);
 	Sphere->InitSphereRadius(30.f);
+	Sphere->SetHiddenInGame(true);
 
 	Effect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Effect"));
 	Effect->SetupAttachment(RootComponent);
-
-	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
-	Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
 void Aitem::BeginPlay()
@@ -36,34 +37,6 @@ void Aitem::BeginPlay()
 
 	Sphere->OnComponentEndOverlap.AddDynamic(this, &Aitem::SphereEndOverlap);
 	Sphere->OnComponentBeginOverlap.AddDynamic(this, &Aitem::SphereOverlap);
-}
-
-void Aitem::SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                             UPrimitiveComponent* OtherComp,
-                             int32 OtherBodyIndex)
-{
-	if (AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor))
-	{
-		SlashCharacter->SetEquippedItem(nullptr);
-	}
-}
-
-void Aitem::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor);
-	if (SlashCharacter)
-	{
-		SlashCharacter->SetEquippedItem(this);
-	}
-}
-
-void Aitem::StartSpawning(const FVector& Target)
-{
-	ItemState = EItemState::EIS_Spawning;
-	TargetLocation = Target;
-	StartLocation = GetActorLocation(); // 重新记录起点为当前位置
-	SpawnRunningTime = 0.f;
 }
 
 void Aitem::Tick(float DeltaTime)
@@ -107,6 +80,40 @@ void Aitem::Tick(float DeltaTime)
 		AddActorWorldRotation(FRotator(0.f, RotationRate * DeltaTime, 0.f));
 	}
 }
+
+// ==================== 拾取碰撞 ====================
+
+void Aitem::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor);
+	if (SlashCharacter)
+	{
+		SlashCharacter->SetEquippedItem(this);
+	}
+}
+
+void Aitem::SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                             UPrimitiveComponent* OtherComp,
+                             int32 OtherBodyIndex)
+{
+	if (AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor))
+	{
+		SlashCharacter->SetEquippedItem(nullptr);
+	}
+}
+
+// ==================== 生成 ====================
+
+void Aitem::StartSpawning(const FVector& Target)
+{
+	ItemState = EItemState::EIS_Spawning;
+	TargetLocation = Target;
+	StartLocation = GetActorLocation(); // 重新记录起点为当前位置
+	SpawnRunningTime = 0.f;
+}
+
+// ==================== 拾取 ====================
 
 void Aitem::OnPickup_Implementation(AActor* Picker)
 {

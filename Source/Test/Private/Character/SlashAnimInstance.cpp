@@ -32,7 +32,7 @@ void USlashAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 
 	// 同步角色状态
-	CharacterState = MyCharacter->GetCharacterState();
+	WeaponState = MyCharacter->GetCharacterState();
 	ArmWeaponState = MyCharacter->GetArmWeaponState();
 	bIsArming = MyCharacter->IsArming();
 }

@@ -98,64 +98,64 @@ The project follows a decoupled, component-based architecture to ensure scalabil
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Patrolling
+    [*] --> 巡逻
 
-    Patrolling --> Chasing : player perceived
-    Chasing --> Combating : enter CombatingRadius
-    Combating --> Chasing : beyond CombatingRadius
-    Chasing --> Patrolling : target lost / out of range
+    巡逻 --> 追击 : 感知到玩家
+    追击 --> 战斗 : 进入战斗范围
+    战斗 --> 追击 : 超出战斗范围
+    追击 --> 巡逻 : 目标丢失 / 超出追击范围
 
-    Combating --> Attacking : facing OK (DotProduct > threshold)
-    Attacking --> Chasing : OnAttackEnd() -> CheckCombatTarget()
+    战斗 --> 攻击 : 面朝校验通过 (DotProduct > 阈值)
+    攻击 --> 追击 : 攻击结束 → CheckCombatTarget()
 
-    Patrolling --> Stunned : TakeDamage (alive)
-    Chasing --> Stunned : TakeDamage (alive)
-    Combating --> Stunned : TakeDamage (alive)
-    Attacking --> Stunned : TakeDamage (alive)
+    巡逻 --> 硬直 : 受击 (存活)
+    追击 --> 硬直 : 受击 (存活)
+    战斗 --> 硬直 : 受击 (存活)
+    攻击 --> 硬直 : 受击 (存活)
 
-    Stunned --> Chasing : OnHitReactEnd() -> CheckCombatTarget()
+    硬直 --> 追击 : 硬直结束 → CheckCombatTarget()
 
-    Patrolling --> Dead : TakeDamage (dead)
-    Chasing --> Dead : TakeDamage (dead)
-    Combating --> Dead : TakeDamage (dead)
-    Attacking --> Dead : TakeDamage (dead)
-    Stunned --> Dead : TakeDamage (dead)
+    巡逻 --> 死亡 : 受击 (致死)
+    追击 --> 死亡 : 受击 (致死)
+    战斗 --> 死亡 : 受击 (致死)
+    攻击 --> 死亡 : 受击 (致死)
+    硬直 --> 死亡 : 受击 (致死)
 ```
 
-### Tick 每帧流程 / Per-Frame Flow
+### Tick 每帧流程
 
 ```mermaid
 flowchart TD
-    A[Tick] --> B{State Guard}
-    B -->|Dead / Stunned / Attacking| C[return - skip frame]
-    B -->|other states| D[CheckCombatTarget]
-    D --> E{distance check}
-    E -->|within CombatingRadius| F[Set Combating]
-    E -->|within ChasingRadius| G[Set Chasing]
-    E -->|out of range| H[Set Patrolling]
-    F --> I{switch state}
+    A[Tick] --> B{状态守卫}
+    B -->|Dead / Stunned / Attacking| C[return - 跳过本帧]
+    B -->|其他状态| D[CheckCombatTarget]
+    D --> E{距离判断}
+    E -->|在战斗范围内| F[切 Combating]
+    E -->|在追击范围内| G[切 Chasing]
+    E -->|超出范围| H[切 Patrolling]
+    F --> I{switch 状态}
     G --> I
     H --> I
     I --> J[OnPatrolling]
     I --> K[OnChasing]
     I --> L[OnCombating]
-    L --> M{facing check}
-    M -->|DotProduct > threshold| N[Attack]
-    M -->|not facing| O[Rotate toward target]
+    L --> M{面朝校验}
+    M -->|DotProduct > 阈值| N[Attack]
+    M -->|未面朝| O[转向目标]
 ```
 
-### 攻击冷却机制 / Attack Cooldown
+### 攻击冷却机制
 
 ```mermaid
 flowchart LR
-    A[Attack] --> B[bAttackOnCooldown = true]
-    B --> C[Timer 3-5s]
-    C --> D[Set Attacking + Play Montage]
-    D --> E[Montage End]
+    A[Attack] --> B[设置冷却标记]
+    B --> C[Timer 3~5秒]
+    C --> D[切 Attacking + 播蒙太奇]
+    D --> E[蒙太奇结束]
     E --> F[CheckCombatTarget]
-    F --> G{cooldown?}
-    G -->|expired| H[can Attack again]
-    G -->|active| I[face player, wait]
+    F --> G{冷却中?}
+    G -->|已到期| H[可再次攻击]
+    G -->|未到期| I[面朝玩家等待]
 ```
 
 ### 关键方法职责 / Key Method Responsibilities

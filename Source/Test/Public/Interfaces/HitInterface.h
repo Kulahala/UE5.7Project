@@ -20,6 +20,9 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat")
 	void GetHit(const FVector& ImpactPoint, AActor* HitInstigator);
 
+	// 受击特效（音效+粒子），无受击动画，同类命中也触发
+	virtual void PlayHitEffects(const FVector& ImpactPoint) {}
+
 	// 纯数学工具：通过点积+叉积计算受击角度，返回 [-180, 180]
 	static double GetHitDirection(const FVector& Forward, const FVector& ToHit)
 	{

@@ -24,6 +24,7 @@ public:
 
 	/* 战斗 */
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
+	virtual void PlayHitEffects(const FVector& ImpactPoint) override;
 	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
 	                         class AController* EventInstigator, AActor* DamageCauser) override; // 受击扣血逻辑
 	virtual void DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator); // 方向性受击反应
@@ -49,7 +50,7 @@ protected:
 
 	/* 状态 */
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
-	EWeaponState CharacterState = EWeaponState::ECS_Unequipped; // 装备状态
+	EWeaponState WeaponState = EWeaponState::ECS_Unequipped; // 装备状态
 
 	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming; // 拔刀/收刀状态
@@ -81,6 +82,6 @@ public:
 	FORCEINLINE UAttributeComponent* GetAttributes() const { return Attributes; }
 	FORCEINLINE float GetGroundSpeed() const { return GroundSpeed; }
 	FORCEINLINE float GetDirection() const { return Direction; }
-	FORCEINLINE EWeaponState GetCharacterState() const { return CharacterState; }
+	FORCEINLINE EWeaponState GetCharacterState() const { return WeaponState; }
 	FORCEINLINE EArmWeaponState GetArmWeaponState() const { return ArmWeaponState; }
 };

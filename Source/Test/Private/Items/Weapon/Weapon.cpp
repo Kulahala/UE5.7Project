@@ -2,6 +2,7 @@
 
 #include "Items/Weapon/Weapon.h"
 #include "Character/MyCharacter.h"
+#include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Interfaces/HitInterface.h"
@@ -9,19 +10,17 @@
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 
+// ==================== 生命周期 ====================
+
 AWeapon::AWeapon()
 {
-	BoxTraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceStart"));
-	BoxTraceStart->SetupAttachment(GetMesh());
-
-	BoxTraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("BoxTraceEnd"));
-	BoxTraceEnd->SetupAttachment(GetMesh());
+	BoxTrace = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxTrace"));
+	BoxTrace->SetupAttachment(GetMesh());
+	BoxTrace->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BoxTrace->SetHiddenInGame(true);
 }
 
-void AWeapon::BeginPlay()
-{
-	Super::BeginPlay();
-}
+// ==================== 装备/拾取 ====================
 
 void AWeapon::AttachMeshToSocket(USceneComponent* Parent, const FName& SocketName)
 {
@@ -68,29 +67,31 @@ void AWeapon::OnPickup_Implementation(AActor* Picker)
 	}
 }
 
+// ==================== 拾取碰撞 ====================
+
+void AWeapon::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                            UPrimitiveComponent* OtherComp,
+                            int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	Super::SphereOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
+}
+
+// ==================== 武器碰撞检测 ====================
+
 void AWeapon::StartWeaponTrace()
 {
-	// 记录攻击刚开始时的初始位置
-	check(BoxTraceStart && BoxTraceEnd);
-	TraceStartOld = BoxTraceStart->GetComponentLocation();
-	TraceEndOld = BoxTraceEnd->GetComponentLocation();
+	check(BoxTrace);
+	TraceCenterOld = BoxTrace->GetComponentLocation();
+	TraceRotationOld = BoxTrace->GetComponentRotation();
 }
 
 void AWeapon::ExecuteWeaponTrace()
 {
-	check(BoxTraceStart && BoxTraceEnd);
+	check(BoxTrace);
 
-	FVector Start = BoxTraceStart->GetComponentLocation();
-	FVector End = BoxTraceEnd->GetComponentLocation();
-
-	// 计算当前帧与上一帧的中心点
-	FVector CurrentCenter = (Start + End) / 2.0f;
-	FVector OldCenter = (TraceStartOld + TraceEndOld) / 2.0f;
-
-	// 构造代表整把刀的盒体参数
-	float HalfLength = FVector::Distance(Start, End) / 2.0f;
-	FVector BoxHalfExtent = FVector(HalfLength, 5.0f, 5.0f);
-	FRotator TraceRotation = (End - Start).Rotation();
+	FVector CurrentCenter = BoxTrace->GetComponentLocation();
+	FRotator TraceRotation = BoxTrace->GetComponentRotation();
+	FVector BoxHalfExtent = BoxTrace->GetScaledBoxExtent();
 
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
@@ -109,68 +110,57 @@ void AWeapon::ExecuteWeaponTrace()
 
 	// 盒体扫掠：连接相邻两帧路径，防止高速挥砍漏判
 	bool bHit = UKismetSystemLibrary::BoxTraceSingle(
-		this, OldCenter, CurrentCenter, BoxHalfExtent, TraceRotation,
+		this, TraceCenterOld, CurrentCenter, BoxHalfExtent, TraceRotation,
 		UEngineTypes::ConvertToTraceType(ECC_WorldDynamic), false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame,
 		HitPoint, true, FLinearColor::Red, FLinearColor::Green, 3.f);
 
 	// 记录本帧位置，留给下帧做参考
-	TraceStartOld = Start;
-	TraceEndOld = End;
+	TraceCenterOld = CurrentCenter;
+	TraceRotationOld = TraceRotation;
 
 	if (bHit && HitPoint.GetActor())
 	{
 		AActor* HitActor = HitPoint.GetActor();
 
-		UGameplayStatics::ApplyDamage(HitPoint.GetActor(), Damage, GetInstigatorController(), this,
-		                              UDamageType::StaticClass());
+		// 同类豁免：武器持有者和命中目标共享标签 → 跳过
+		bool bSameTeam = false;
+		if (GetOwner())
+		{
+			for (const FName& Tag : GetOwner()->Tags)
+			{
+				if (HitActor->ActorHasTag(Tag))
+				{
+					bSameTeam = true;
+					break;
+				}
+			}
+		}
 
+		// 伤害：只有跨阵营才扣血
+		if (!bSameTeam)
+		{
+			UGameplayStatics::ApplyDamage(HitPoint.GetActor(), Damage, GetInstigatorController(), this,
+			                              UDamageType::StaticClass());
+		}
+
+		// 受击反应+特效：所有命中都触发（同类有反应但不扣血）
 		if (HitActor->Implements<UHitInterface>())
 		{
 			IHitInterface::Execute_GetHit(HitActor, HitPoint.ImpactPoint, GetOwner());
 		}
 
 		// 触发摄像机震动反馈
-		if (HitCameraShake && GetInstigatorController())
-		{
-			if (APlayerController* PlayerController = Cast<APlayerController>(GetInstigatorController()))
-			{
-				PlayerController->ClientStartCameraShake(HitCameraShake);
-			}
-		}
+		CameraShake();
 
 		// 触发卡肉感 (Hit Stop)
-		if (bEnableHitStop)
-		{
-			AActor* Attacker = GetOwner();
-			if (Attacker && HitActor)
-			{
-				Attacker->CustomTimeDilation = HitStopTimeDilation;
-				HitActor->CustomTimeDilation = HitStopTimeDilation;
-
-				FTimerHandle HitStopTimer;
-				FTimerDelegate TimerDel;
-				TimerDel.BindUFunction(this, FName("RestoreTimeDilation"), Attacker, HitActor);
-				GetWorld()->GetTimerManager().SetTimer(HitStopTimer, TimerDel, HitStopDuration, false);
-			}
-		}
-
-		// 击中一次后加入黑名单，防止同一刀造成多次伤害
+		SetEnableHitStop(true);
+		HitStop(HitActor);
+		// 击中一次后加入黑名单，防止同一刀造成多次伤害（同类也加入，避免每帧重复判断）
 		IgnoreActors.AddUnique(HitActor);
 	}
 }
 
-void AWeapon::SphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                               UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	Super::SphereEndOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex);
-}
-
-void AWeapon::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                            UPrimitiveComponent* OtherComp,
-                            int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	Super::SphereOverlap(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
-}
+// ==================== 卡肉感 ====================
 
 void AWeapon::RestoreTimeDilation(AActor* Attacker, AActor* Victim)
 {
@@ -181,5 +171,34 @@ void AWeapon::RestoreTimeDilation(AActor* Attacker, AActor* Victim)
 	if (Victim)
 	{
 		Victim->CustomTimeDilation = 1.0f;
+	}
+}
+
+void AWeapon::HitStop(AActor* HitActor)
+{
+	if (bEnableHitStop)
+	{
+		AActor* Attacker = GetOwner();
+		if (Attacker && HitActor)
+		{
+			Attacker->CustomTimeDilation = HitStopTimeDilation;
+			HitActor->CustomTimeDilation = HitStopTimeDilation;
+
+			FTimerHandle HitStopTimer;
+			FTimerDelegate TimerDel;
+			TimerDel.BindUFunction(this, FName("RestoreTimeDilation"), Attacker, HitActor);
+			GetWorld()->GetTimerManager().SetTimer(HitStopTimer, TimerDel, HitStopDuration, false);
+		}
+	}
+}
+
+void AWeapon::CameraShake()
+{
+	if (HitCameraShake && GetInstigatorController())
+	{
+		if (APlayerController* PlayerController = Cast<APlayerController>(GetInstigatorController()))
+		{
+			PlayerController->ClientStartCameraShake(HitCameraShake);
+		}
 	}
 }

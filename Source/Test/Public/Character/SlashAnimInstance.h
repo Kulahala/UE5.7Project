@@ -39,7 +39,7 @@ private:
 	float Direction;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
-	EWeaponState CharacterState = EWeaponState::ECS_Unequipped;
+	EWeaponState WeaponState = EWeaponState::ECS_Unequipped;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	EArmWeaponState ArmWeaponState = EArmWeaponState::AWS_Disarming;

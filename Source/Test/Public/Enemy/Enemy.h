@@ -27,43 +27,48 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/* 战斗 */
-	virtual void Attack() override;
+	/* 受击/死亡 */
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
 	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
 	                         class AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void DirectionalHitReact(const FVector& ImpactPoint, const AActor* HitInstigator) override;
 	void Die(); // 死亡演出
 
-	/* 蒙太奇结束回调 */
+	/* 攻击 */
+	virtual void Attack() override;
+
+	/* 蒙太奇回调 */
 	UFUNCTION(BlueprintCallable)
 	void OnHitReactEnd();
 	UFUNCTION(BlueprintCallable)
 	void OnAttackEnd();
 
 protected:
-	/* AI状态机 */
-	void CheckCombatTarget(); // 根据目标距离决定战斗/追击/巡逻
-	void SetEnemyState(EEnemyState NewState); // 处理进入/退出状态的一次性事件
-	void OnPatrolling(float DeltaTime); // 巡逻Tick逻辑
-	void OnChasing(); // 追逐Tick逻辑
-	void OnCombating(float DeltaTime); // 战斗Tick逻辑
-	void OnAttackCooldownEnd(); // 攻击冷却到期回调
-	void MoveToTarget(const AActor* Target); // 导航移动到目标
-	bool BInTargetRange(AActor* Target, double Range) const; // 检查目标是否在范围内
-
-	/* 蒙太奇 */
+	/* 攻击 */
 	virtual bool CanAttack() const override;
 	virtual void PlayHitReactMontage(const FName& SectionName) override;
+	void OnAttackCooldownEnd(); // 攻击冷却到期回调
 
-	/* 血条显示 */
-	void ShowHealthBar();
-	void HideHealthBar();
-	FTimerHandle HealthBarHideTimer; // 血条延迟隐藏定时器
+	/* 状态机 */
+	void CheckCombatTarget(); // 根据目标距离决定战斗/追击/巡逻
+	void SetEnemyState(EEnemyState NewState); // 状态切换并处理进入/退出状态的一次性事件
 
 	/* AI感知 */
 	UFUNCTION()
 	void TargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus); // 感知到目标的回调
+
+	/* AI Tick */
+	void OnPatrolling(float DeltaTime); // 巡逻Tick逻辑
+	void OnChasing(); // 追逐Tick逻辑
+	void OnCombating(float DeltaTime); // 战斗Tick逻辑
+
+	/* 导航/工具 */
+	void MoveToTarget(const AActor* Target); // 导航移动到目标
+	bool BInTargetRange(AActor* Target, double Range) const; // 检查目标是否在范围内
+
+	/* 血条 */
+	void ShowHealthBar();
+	void HideHealthBar();
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	float HealthBarDisplayTime = 4.0f; // 血条显示持续时间
@@ -157,14 +162,17 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
 	float SingleLookTime = 1.5f; // 单次张望持续时间
 
-	FTimerHandle PatrolTimer; // 巡逻等待定时器
-	FTimerHandle LookTimer; // 张望定时器
-	FTimerHandle AttackCooldownTimer; // 攻击冷却定时器
-	bool bAttackOnCooldown = false; // 攻击冷却中
 	void PatrolTimerFinished(); // 等待结束回调
-	void ClearPatrolTimers(); // 清理巡逻相关定时器
-	void ClearAllTimers(); // 清理所有定时器（巡逻 + 冷却 + 血条）
 	void GenerateNewLookRotation(); // 生成新的张望方向
 	AActor* ChooseRadomTarget(const TArray<AActor*>& TargetArray); // 随机选择巡逻点
 	FRotator PatrolWaitTargetRotation; // 张望目标旋转
+
+	/* 定时器 */
+	FTimerHandle PatrolTimer; // 巡逻等待定时器
+	FTimerHandle LookTimer; // 张望定时器
+	FTimerHandle AttackCooldownTimer; // 攻击冷却定时器
+	FTimerHandle HealthBarHideTimer; // 血条延迟隐藏定时器
+	bool bAttackOnCooldown = false; // 攻击冷却中
+	void ClearPatrolTimers(); // 清理巡逻相关定时器
+	void ClearAllTimers(); // 清理所有定时器（巡逻 + 冷却 + 血条）
 };

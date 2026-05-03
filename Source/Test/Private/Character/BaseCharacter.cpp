@@ -4,6 +4,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "KismetAnimationLibrary.h"
 
+// ==================== 生命周期 ====================
 
 ABaseCharacter::ABaseCharacter()
 {
@@ -19,6 +20,11 @@ ABaseCharacter::ABaseCharacter()
 	Attributes = CreateDefaultSubobject<UAttributeComponent>(TEXT("Attributes"));
 }
 
+void ABaseCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
 void ABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -27,10 +33,7 @@ void ABaseCharacter::Tick(float DeltaTime)
 	Direction = UKismetAnimationLibrary::CalculateDirection(GetVelocity(), GetActorRotation());
 }
 
-void ABaseCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-}
+// ==================== 受击/战斗 ====================
 
 void ABaseCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
 {
@@ -40,6 +43,11 @@ void ABaseCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* H
 		DirectionalHitReact(ImpactPoint, HitInstigator);
 	}
 
+	PlayHitEffects(ImpactPoint);
+}
+
+void ABaseCharacter::PlayHitEffects(const FVector& ImpactPoint)
+{
 	if (HitSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, HitSound, ImpactPoint);
@@ -50,7 +58,6 @@ void ABaseCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* H
 		UGameplayStatics::SpawnEmitterAtLocation(this, HitParticle, ImpactPoint);
 	}
 }
-
 
 float ABaseCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
                                  class AController* EventInstigator, AActor* DamageCauser)
@@ -101,10 +108,11 @@ void ABaseCharacter::Attack()
 {
 }
 
-
 void ABaseCharacter::Equip()
 {
 }
+
+// ==================== 蒙太奇 ====================
 
 void ABaseCharacter::PlayAttackMontage(const FName& SectionName)
 {

@@ -7,6 +7,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Items/Weapon/Weapon.h"
 
+// ==================== 生命周期 ====================
+
 AMyCharacter::AMyCharacter()
 {
 	// 移动设置
@@ -36,6 +38,8 @@ void AMyCharacter::Tick(float DeltaTime)
 	UpdateMovementSpeed();
 }
 
+// ==================== 战斗 ====================
+
 void AMyCharacter::Attack()
 {
 	Super::Attack();
@@ -52,9 +56,17 @@ void AMyCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* Hit
 	ActionState = EActionState::EAS_Stunning;
 }
 
+bool AMyCharacter::CanAttack() const
+{
+	return ActionState == EActionState::EAS_UnOccupied && WeaponState != EWeaponState::ECS_Unequipped &&
+		ArmWeaponState == EArmWeaponState::AWS_Arming;
+}
+
+// ==================== 装备 ====================
+
 void AMyCharacter::Equip()
 {
-	if (OverLapItem && OverLapItem->Implements<UPickupInterface>() && CharacterState == EWeaponState::ECS_Unequipped)
+	if (OverLapItem && OverLapItem->Implements<UPickupInterface>() && WeaponState == EWeaponState::ECS_Unequipped)
 	{
 		IPickupInterface::Execute_OnPickup(OverLapItem, this);
 
@@ -62,14 +74,14 @@ void AMyCharacter::Equip()
 		{
 			EquippedWeapon = Weapon;
 		}
-		CharacterState = EWeaponState::ECS_OneHandEquipped;
+		WeaponState = EWeaponState::ECS_OneHandEquipped;
 		ArmWeaponState = EArmWeaponState::AWS_Arming;
 	}
 }
 
 void AMyCharacter::ArmWeapon()
 {
-	if (ActionState != EActionState::EAS_UnOccupied || CharacterState == EWeaponState::ECS_Unequipped)
+	if (ActionState != EActionState::EAS_UnOccupied || WeaponState == EWeaponState::ECS_Unequipped)
 	{
 		return;
 	}
@@ -87,6 +99,8 @@ void AMyCharacter::ArmWeapon()
 	}
 }
 
+// ==================== 移动 ====================
+
 void AMyCharacter::Sprint()
 {
 	bIsSprinting = true;
@@ -101,7 +115,6 @@ void AMyCharacter::Walk()
 {
 	bIsWalking = true;
 }
-
 
 void AMyCharacter::StopWalking()
 {
@@ -158,6 +171,8 @@ void AMyCharacter::UpdateMovementSpeed()
 	}
 }
 
+// ==================== 蒙太奇 ====================
+
 void AMyCharacter::PlayAttackMontage(const FName& SectionName)
 {
 	Super::PlayAttackMontage(SectionName);
@@ -175,12 +190,6 @@ void AMyCharacter::PlayArmMontage(const FName& SectionName)
 		EndDelegate.BindUObject(this, &AMyCharacter::OnArmMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(EndDelegate, ArmMontage);
 	}
-}
-
-bool AMyCharacter::CanAttack() const
-{
-	return ActionState == EActionState::EAS_UnOccupied && CharacterState != EWeaponState::ECS_Unequipped &&
-		ArmWeaponState == EArmWeaponState::AWS_Arming;
 }
 
 void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
