@@ -6,6 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Items/Weapon/Weapon.h"
+#include "Components/CapsuleComponent.h"
 #include "HUD/PlayerHUDWidget.h"
 #include "AttributeComponent/AttributeComponent.h"
 
@@ -46,7 +47,7 @@ void AMyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (ActionState == EActionState::EAS_Stunning) return;
+	if (ActionState == EActionState::EAS_Stunning || ActionState == EActionState::EAC_Dead) return;
 
 	UpdateMovementSpeed();
 
@@ -73,13 +74,40 @@ void AMyCharacter::Attack()
 void AMyCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator)
 {
 	Super::GetHit_Implementation(ImpactPoint, HitInstigator);
-	ActionState = EActionState::EAS_Stunning;
+	if (Attributes->IsAlive())
+	{
+		ActionState = EActionState::EAS_Stunning;
+	}
+}
+
+void AMyCharacter::Die()
+{
+	ActionState = EActionState::EAC_Dead;
+
+	// 停止移动
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+
+	// 关闭碰撞
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 播放死亡蒙太奇
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && DeathMontage)
+	{
+		AnimInstance->Montage_Stop(0.1f);
+		AnimInstance->Montage_Play(DeathMontage);
+	}
 }
 
 float AMyCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
                                class AController* EventInstigator, AActor* DamageCauser)
 {
 	Attributes->ReceiveDamage(DamageAmount);
+	if (!Attributes->IsAlive())
+	{
+		Die();
+	}
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
