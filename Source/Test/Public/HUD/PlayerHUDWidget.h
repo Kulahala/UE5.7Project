@@ -1,0 +1,39 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Blueprint/UserWidget.h"
+#include "PlayerHUDWidget.generated.h"
+
+class UProgressBar;
+class UAttributeComponent;
+
+UCLASS()
+class TEST_API UPlayerHUDWidget : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION()
+	void SetHealthPercent(float Percent);
+	void BindToAttributes(UAttributeComponent* Attributes);
+
+	UPROPERTY(meta = (BindWidget))
+	UProgressBar* PB_Health;
+
+	UPROPERTY(meta = (BindWidget))
+	UProgressBar* PB_Buffer;
+
+protected:
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
+private:
+	// 缓冲条追赶真实血条的速度
+	UPROPERTY(EditAnywhere, Category = "Health Bar")
+	float BufferInterpSpeed = 3.0f;
+
+	// 缓冲条开始下降前的等待时间（延迟时间）
+	UPROPERTY(EditAnywhere, Category = "Health Bar")
+	float BufferDelayTime = 2.0f;
+
+	float CurrentBufferDelay = 0.0f;
+};

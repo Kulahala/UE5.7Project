@@ -48,6 +48,8 @@ public:
 	FORCEINLINE int32 GetGold() const { return Gold; }
 
 	FORCEINLINE float GetHealthPercent() const { return CurrentHealth / MaxHealth; }
+	FORCEINLINE float GetCurrentHealth() const { return CurrentHealth; }
+	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 
 	FORCEINLINE bool IsAlive() const { return CurrentHealth > 0.f; }
 };

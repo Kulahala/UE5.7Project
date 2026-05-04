@@ -27,6 +27,7 @@ UENUM()
 enum class EEnemyState : uint8 {
 	EES_UnOccupied UMETA(DisplayName = "UnOccupied"), // 初始态
 	EES_Patrolling UMETA(DisplayName = "Patrolling"), // 巡逻中
+	EES_Searching UMETA(DisplayName = "Searching"),   // 张望搜索
 	EES_Chasing UMETA(DisplayName = "Chasing"),       // 追逐中
 	EES_Attacking UMETA(DisplayName = "Attacking"),   // 攻击硬直
 	EES_Combating UMETA(DisplayName = "Combating"),	  // 战斗中

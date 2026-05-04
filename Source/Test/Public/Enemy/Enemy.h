@@ -59,6 +59,7 @@ protected:
 
 	/* AI Tick */
 	void OnPatrolling(float DeltaTime); // 巡逻Tick逻辑
+	void OnSearching(float DeltaTime); // 张望搜索Tick逻辑
 	void OnChasing(); // 追逐Tick逻辑
 	void OnCombating(float DeltaTime); // 战斗Tick逻辑
 
@@ -162,7 +163,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Ai Navigation", meta = (AllowPrivateAccess = "true"))
 	float SingleLookTime = 1.5f; // 单次张望持续时间
 
-	void PatrolTimerFinished(); // 等待结束回调
+	void SearchTimerFinished(); // 搜索等待结束回调
 	void GenerateNewLookRotation(); // 生成新的张望方向
 	AActor* ChooseRadomTarget(const TArray<AActor*>& TargetArray); // 随机选择巡逻点
 	FRotator PatrolWaitTargetRotation; // 张望目标旋转

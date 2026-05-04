@@ -90,7 +90,7 @@ void AEnemy::BeginPlay()
 	{
 		SpawnLocation.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	}
-
+	// 如果未设定巡逻点数组，则在出生点生成一个临时的巡逻点
 	SpawnPoint = GetWorld()->SpawnActor<ATargetPoint>(ATargetPoint::StaticClass(), SpawnLocation, GetActorRotation());
 	if (SpawnPoint)
 	{
@@ -218,7 +218,7 @@ void AEnemy::Attack()
 	bAttackOnCooldown = true;
 	const float Cooldown = FMath::RandRange(MinAttackInterval, MaxAttackInterval);
 	GetWorldTimerManager().SetTimer(AttackCooldownTimer, this,
-		&AEnemy::OnAttackCooldownEnd, Cooldown, false);
+	                                &AEnemy::OnAttackCooldownEnd, Cooldown, false);
 
 	SetEnemyState(EEnemyState::EES_Attacking);
 	PlayAttackMontage(FName("Attack1"));
@@ -266,7 +266,10 @@ void AEnemy::CheckCombatTarget()
 	if (!IsValid(ChasingTarget))
 	{
 		ChasingTarget = nullptr;
-		SetEnemyState(EEnemyState::EES_Patrolling);
+		if (EnemyState != EEnemyState::EES_Patrolling && EnemyState != EEnemyState::EES_Searching)
+		{
+			SetEnemyState(EEnemyState::EES_Patrolling);
+		}
 		return;
 	}
 
@@ -293,7 +296,7 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 	}
 
 	// --- 退出旧状态的逻辑 ---
-	if (EnemyState == EEnemyState::EES_Patrolling)
+	if (EnemyState == EEnemyState::EES_Patrolling || EnemyState == EEnemyState::EES_Searching)
 	{
 		ClearPatrolTimers();
 		GetCharacterMovement()->bOrientRotationToMovement = true;
@@ -308,6 +311,9 @@ void AEnemy::SetEnemyState(EEnemyState NewState)
 	case EEnemyState::EES_Patrolling:
 		GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
 		MoveToTarget(PatrolTarget);
+		break;
+	case EEnemyState::EES_Searching:
+		// OnSearching 首次 Tick 时处理启动逻辑
 		break;
 	case EEnemyState::EES_Chasing:
 		GetCharacterMovement()->MaxWalkSpeed = ChaseSpeed;
@@ -357,7 +363,7 @@ void AEnemy::TargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 	{
 		return;
 	}
-	// 专注度校验
+	// 专注度校验（Searching 允许被感知打断，由 CheckCombatTarget 自然切到 Chasing）
 	if (EnemyState == EEnemyState::EES_Chasing || EnemyState == EEnemyState::EES_Attacking)
 	{
 		return;
@@ -394,6 +400,9 @@ void AEnemy::Tick(float DeltaTime)
 	case EEnemyState::EES_Patrolling:
 		OnPatrolling(DeltaTime);
 		break;
+	case EEnemyState::EES_Searching:
+		OnSearching(DeltaTime);
+		break;
 	case EEnemyState::EES_Chasing:
 		OnChasing();
 		break;
@@ -413,33 +422,33 @@ void AEnemy::OnPatrolling(float DeltaTime)
 	}
 	if (BInTargetRange(PatrolTarget, PatrolRadius))
 	{
-		if (!GetWorldTimerManager().IsTimerActive(PatrolTimer))
+		SetEnemyState(EEnemyState::EES_Searching);
+	}
+}
+
+void AEnemy::OnSearching(float DeltaTime)
+{
+	if (!GetWorldTimerManager().IsTimerActive(PatrolTimer))
+	{
+		// 刚进入搜索：停止移动，关闭自动朝向，启动定时器
+		if (EnemyController)
 		{
-			// 刚到达：停止移动，关闭自动朝向运动方向，准备张望
-			if (EnemyController)
-			{
-				EnemyController->StopMovement();
-			}
-			GetCharacterMovement()->bOrientRotationToMovement = false;
-
-			// 刚到达：启动计时器
-			const float WaitTime = FMath::RandRange(PatrolWaitMin, PatrolWaitMax);
-			GetWorldTimerManager().SetTimer(PatrolTimer, this, &AEnemy::PatrolTimerFinished, WaitTime);
-
-			// 启动单次转身的循环计时器
-			GetWorldTimerManager().SetTimer(LookTimer, this, &AEnemy::GenerateNewLookRotation, SingleLookTime, true);
-
-			// 立即生成第一个转身目标
-			GenerateNewLookRotation();
+			EnemyController->StopMovement();
 		}
-		else
-		{
-			// 等待期间：平滑旋转到当前决定的目标朝向
-			FRotator CurrentRotation = GetActorRotation();
-			FRotator NewRotation = FMath::RInterpTo(CurrentRotation, PatrolWaitTargetRotation, DeltaTime,
-			                                        PatrolRotationSpeed);
-			SetActorRotation(NewRotation);
-		}
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+
+		const float WaitTime = FMath::RandRange(PatrolWaitMin, PatrolWaitMax);
+		GetWorldTimerManager().SetTimer(PatrolTimer, this, &AEnemy::SearchTimerFinished, WaitTime);
+		GetWorldTimerManager().SetTimer(LookTimer, this, &AEnemy::GenerateNewLookRotation, SingleLookTime, true);
+		GenerateNewLookRotation();
+	}
+	else
+	{
+		// 等待期间：平滑旋转到张望目标方向
+		FRotator CurrentRotation = GetActorRotation();
+		FRotator NewRotation = FMath::RInterpTo(CurrentRotation, PatrolWaitTargetRotation, DeltaTime,
+		                                        PatrolRotationSpeed);
+		SetActorRotation(NewRotation);
 	}
 }
 
@@ -566,23 +575,23 @@ void AEnemy::HideHealthBar()
 	}
 }
 
-// ==================== 巡逻 ====================
+// ==================== 搜索/巡逻 ====================
 
-void AEnemy::PatrolTimerFinished()
+void AEnemy::SearchTimerFinished()
 {
-	GetWorldTimerManager().ClearTimer(LookTimer); // 停止张望
-	GetCharacterMovement()->bOrientRotationToMovement = true; // 恢复自动朝向运动方向
+	GetWorldTimerManager().ClearTimer(LookTimer);
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 
 	if (AActor* Target = ChooseRadomTarget(PatrolTargets))
 	{
 		PatrolTarget = Target;
-		MoveToTarget(PatrolTarget);
+		SetEnemyState(EEnemyState::EES_Patrolling);
 	}
 	else
 	{
-		// 极端情况：所有点都挨得太近了，原地重新开启一轮等待和张望
+		// 无可用巡逻点：留在 Searching 重新等待+张望
 		const float WaitTime = FMath::RandRange(PatrolWaitMin, PatrolWaitMax);
-		GetWorldTimerManager().SetTimer(PatrolTimer, this, &AEnemy::PatrolTimerFinished, WaitTime);
+		GetWorldTimerManager().SetTimer(PatrolTimer, this, &AEnemy::SearchTimerFinished, WaitTime);
 		GetWorldTimerManager().SetTimer(LookTimer, this, &AEnemy::GenerateNewLookRotation, SingleLookTime, true);
 		GenerateNewLookRotation();
 	}

@@ -6,6 +6,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Items/Weapon/Weapon.h"
+#include "HUD/PlayerHUDWidget.h"
+#include "AttributeComponent/AttributeComponent.h"
 
 // ==================== 生命周期 ====================
 
@@ -27,6 +29,17 @@ void AMyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	Tags.Add(FName("Player"));
+
+	// 玩家 HUD
+	if (PlayerHUDClass)
+	{
+		PlayerHUDWidget = CreateWidget<UPlayerHUDWidget>(GetWorld(), PlayerHUDClass);
+		if (PlayerHUDWidget)
+		{
+			PlayerHUDWidget->AddToViewport();
+			PlayerHUDWidget->BindToAttributes(Attributes);
+		}
+	}
 }
 
 void AMyCharacter::Tick(float DeltaTime)
@@ -36,6 +49,13 @@ void AMyCharacter::Tick(float DeltaTime)
 	if (ActionState == EActionState::EAS_Stunning) return;
 
 	UpdateMovementSpeed();
+
+	// 调试：右上角打印生命值
+	if (GEngine && Attributes)
+	{
+		GEngine->AddOnScreenDebugMessage(2, 0.f, FColor::Red,
+			FString::Printf(TEXT("HP: %.1f / %.1f"), Attributes->GetCurrentHealth(), Attributes->GetMaxHealth()));
+	}
 }
 
 // ==================== 战斗 ====================
@@ -54,6 +74,13 @@ void AMyCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* Hit
 {
 	Super::GetHit_Implementation(ImpactPoint, HitInstigator);
 	ActionState = EActionState::EAS_Stunning;
+}
+
+float AMyCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
+                               class AController* EventInstigator, AActor* DamageCauser)
+{
+	Attributes->ReceiveDamage(DamageAmount);
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
 bool AMyCharacter::CanAttack() const

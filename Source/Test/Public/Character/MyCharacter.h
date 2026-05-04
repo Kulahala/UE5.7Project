@@ -10,6 +10,7 @@
 class Aitem;
 class USpringArmComponent;
 class UCameraComponent;
+class UPlayerHUDWidget;
 
 UCLASS()
 class TEST_API AMyCharacter : public ABaseCharacter
@@ -25,6 +26,8 @@ public:
 	/* 战斗 */
 	virtual void Attack() override;
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
+	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
+	                         class AController* EventInstigator, AActor* DamageCauser) override;
 
 	/* 装备 */
 	virtual void Equip() override;
@@ -59,6 +62,13 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* SpringArm;
+
+	/* HUD */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD")
+	TSubclassOf<UPlayerHUDWidget> PlayerHUDClass;
+
+	UPROPERTY()
+	UPlayerHUDWidget* PlayerHUDWidget;
 
 	/* 状态 */
 	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
