@@ -264,6 +264,24 @@ void AEnemy::OnAttackEnd()
 	}
 }
 
+void AEnemy::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (bInterrupted) return;
+	if (EnemyState == EEnemyState::EES_Attacking)
+	{
+		CheckCombatTarget();
+	}
+}
+
+void AEnemy::OnHitReactMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (bInterrupted) return;
+	if (EnemyState == EEnemyState::EES_Stunned)
+	{
+		CheckCombatTarget();
+	}
+}
+
 void AEnemy::OnAttackCooldownEnd()
 {
 	bAttackOnCooldown = false;

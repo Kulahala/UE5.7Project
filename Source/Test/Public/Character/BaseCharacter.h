@@ -37,6 +37,7 @@ protected:
 	virtual void PlayHitReactMontage(const FName& SectionName);
 	virtual bool CanAttack() const;
 	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	virtual void OnHitReactMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	/* 蒙太奇资源 */
 	UPROPERTY(EditDefaultsOnly, Category = "Montages")

@@ -101,6 +101,7 @@ void AMyCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* Hit
 	if (Attributes->IsAlive())
 	{
 		ActionState = EActionState::EAS_Stunning;
+		Attributes->ResumeStaminaRegen();  // 硬直接管，恢复体力暂停
 	}
 }
 
@@ -302,14 +303,18 @@ void AMyCharacter::PlayArmMontage(const FName& SectionName)
 void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	Super::OnAttackMontageEnded(Montage, bInterrupted);
+	if (bInterrupted) return;  // 更高优先级逻辑（受击/死亡）已接管状态
+
 	ActionState = EActionState::EAS_UnOccupied;
 	Attributes->ResumeStaminaRegen();
 }
 
 void AMyCharacter::OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	ActionState = EActionState::EAS_UnOccupied;
 	bIsArming = false;
+	if (bInterrupted) return;  // 更高优先级逻辑已接管状态
+
+	ActionState = EActionState::EAS_UnOccupied;
 
 	if (ArmWeaponState == EArmWeaponState::AWS_Arming)
 	{

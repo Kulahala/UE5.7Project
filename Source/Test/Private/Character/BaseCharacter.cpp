@@ -135,6 +135,10 @@ void ABaseCharacter::PlayHitReactMontage(const FName& SectionName)
 	{
 		AnimInstance->Montage_Play(HitReactMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, HitReactMontage);
+
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &ABaseCharacter::OnHitReactMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, HitReactMontage);
 	}
 }
 
@@ -144,5 +148,9 @@ bool ABaseCharacter::CanAttack() const
 }
 
 void ABaseCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+}
+
+void ABaseCharacter::OnHitReactMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 }

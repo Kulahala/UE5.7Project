@@ -46,6 +46,8 @@ public:
 	void OnHitReactEnd();
 	UFUNCTION(BlueprintCallable)
 	void OnAttackEnd();
+	virtual void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted) override;
+	virtual void OnHitReactMontageEnded(UAnimMontage* Montage, bool bInterrupted) override;
 
 protected:
 	/* 攻击 */

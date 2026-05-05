@@ -66,7 +66,7 @@ The project follows a decoupled, component-based architecture to ensure scalabil
 | `EAS_Attacking` | 攻击蒙太奇播放中，锁定攻击输入 |
 | `EAS_Arming` | 拔刀/收刀蒙太奇播放中 |
 | `EAS_Stunning` | 受击硬直，短暂锁定 |
-| `EAS_Exhausted` | 体力耗尽，只能行走，5秒后恢复 |
+| `EAS_Exhausted` | 体力耗尽，只能行走，数秒后恢复 |
 | `EAC_Dead` | 死亡，关闭碰撞与移动 |
 
 ```mermaid
@@ -81,7 +81,7 @@ stateDiagram-v2
     Attacking --> UnOccupied : 蒙太奇结束
     Arming --> UnOccupied : 蒙太奇结束
     Stunning --> UnOccupied : 硬直结束
-    Exhausted --> UnOccupied : 5秒恢复 (+1体力)
+    Exhausted --> UnOccupied : 数秒后自动恢复
 
     UnOccupied --> Dead : 生命值归零
     Attacking --> Dead : 生命值归零
@@ -98,8 +98,8 @@ flowchart LR
     C -->|否| D[正常继续]
     C -->|是| E[触发 OnExhausted]
     E --> F[ActionState = Exhausted]
-    F --> G[5秒恢复计时器]
-    G --> H[AddStamina 1点]
+    F --> G[恢复计时器]
+    G --> H[恢复少量体力]
     H --> I[ActionState = UnOccupied]
 
     J[体力 < 上限] -->|Tick 自然恢复| K[StaminaRegenRate]
