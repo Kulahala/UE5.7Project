@@ -15,6 +15,8 @@ class TEST_API UPlayerHUDWidget : public UUserWidget
 public:
 	UFUNCTION()
 	void SetHealthPercent(float Percent);
+	UFUNCTION()
+	void SetStaminaPercent(float Percent);
 	void BindToAttributes(UAttributeComponent* Attributes);
 
 	UPROPERTY(meta = (BindWidget))
@@ -22,6 +24,9 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	UProgressBar* PB_Buffer;
+
+	UPROPERTY(meta = (BindWidget))
+	UProgressBar* PB_Stamina;
 
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;

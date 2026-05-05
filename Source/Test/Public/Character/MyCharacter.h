@@ -25,6 +25,7 @@ public:
 
 	/* 战斗 */
 	virtual void Attack() override;
+	virtual void Jump() override;
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
 	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
 	                         class AController* EventInstigator, AActor* DamageCauser) override;

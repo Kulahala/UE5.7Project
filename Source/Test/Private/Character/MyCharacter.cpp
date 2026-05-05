@@ -51,11 +51,13 @@ void AMyCharacter::Tick(float DeltaTime)
 
 	UpdateMovementSpeed();
 
-	// 调试：右上角打印生命值
+	// 调试：右上角打印生命值和耐力
 	if (GEngine && Attributes)
 	{
 		GEngine->AddOnScreenDebugMessage(2, 0.f, FColor::Red,
 			FString::Printf(TEXT("HP: %.1f / %.1f"), Attributes->GetCurrentHealth(), Attributes->GetMaxHealth()));
+		GEngine->AddOnScreenDebugMessage(3, 0.f, FColor::Green,
+			FString::Printf(TEXT("SP: %.1f / %.1f"), Attributes->GetCurrentStamina(), Attributes->GetMaxStamina()));
 	}
 }
 
@@ -66,8 +68,19 @@ void AMyCharacter::Attack()
 	Super::Attack();
 	if (CanAttack())
 	{
+		Attributes->UseStamina(15.f);
+		Attributes->PauseStaminaRegen();
 		ActionState = EActionState::EAS_Attacking;
 		PlayAttackMontage(FName("Attack2"));
+	}
+}
+
+void AMyCharacter::Jump()
+{
+	if (Attributes && Attributes->CheckStamina(10.f))
+	{
+		Attributes->UseStamina(10.f);
+		Super::Jump();
 	}
 }
 
@@ -114,7 +127,7 @@ float AMyCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& Da
 bool AMyCharacter::CanAttack() const
 {
 	return ActionState == EActionState::EAS_UnOccupied && WeaponState != EWeaponState::ECS_Unequipped &&
-		ArmWeaponState == EArmWeaponState::AWS_Arming;
+		ArmWeaponState == EArmWeaponState::AWS_Arming && Attributes->CheckStamina(15.f);
 }
 
 // ==================== 装备 ====================
@@ -180,6 +193,20 @@ void AMyCharacter::UpdateMovementSpeed()
 {
 	FVector Velocity = GetVelocity();
 	Velocity.Z = 0.f;
+
+	// 奔跑每帧扣耐力
+	if (bIsSprinting && ActionState == EActionState::EAS_UnOccupied && !Velocity.IsNearlyZero())
+	{
+		FVector Forward = GetActorForwardVector();
+		Forward.Z = 0.f;
+		float Dot = FVector::DotProduct(Velocity.GetSafeNormal(), Forward.GetSafeNormal());
+		if (Dot > 0.2f)
+		{
+			float DeltaTime = GetWorld()->GetDeltaSeconds();
+			Attributes->UseStamina(12.f * DeltaTime);
+			Attributes->ResetStaminaRegenCooldown();
+		}
+	}
 
 	float SpeedMultiplier = (ArmWeaponState == EArmWeaponState::AWS_Arming) ? 0.875f : 1.0f;
 
@@ -251,6 +278,7 @@ void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted
 {
 	Super::OnAttackMontageEnded(Montage, bInterrupted);
 	ActionState = EActionState::EAS_UnOccupied;
+	Attributes->ResumeStaminaRegen();
 }
 
 void AMyCharacter::OnArmMontageEnded(UAnimMontage* Montage, bool bInterrupted)

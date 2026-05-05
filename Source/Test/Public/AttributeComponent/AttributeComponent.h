@@ -7,6 +7,7 @@
 #include "AttributeComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChangedSignature, float, HealthPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStaminaChangedSignature, float, StaminaPercent);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class TEST_API UAttributeComponent : public UActorComponent
@@ -18,6 +19,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnHealthChangedSignature OnHealthChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnStaminaChangedSignature OnStaminaChanged;
 
 	void ReceiveDamage(float Damage);
 
@@ -37,6 +41,21 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Actor Attributes", meta = (AllowPrivateAccess = "true"))
 	float MaxHealth = 100.f;
 
+	UPROPERTY(EditAnywhere, Category = "Actor Attributes", meta = (AllowPrivateAccess = "true"))
+	float CurrentStamina = 100.f;
+
+	UPROPERTY(EditAnywhere, Category = "Actor Attributes", meta = (AllowPrivateAccess = "true"))
+	float MaxStamina = 100.f;
+
+	UPROPERTY(EditAnywhere, Category = "Actor Attributes", meta = (AllowPrivateAccess = "true"))
+	float StaminaRegenRate = 10.f;
+
+	UPROPERTY(EditAnywhere, Category = "Actor Attributes", meta = (AllowPrivateAccess = "true"))
+	float StaminaRegenDelay = 1.f; // 消耗后多久开始恢复
+
+	float StaminaRegenCooldown = 0.f; // 当前剩余冷却
+	bool bStaminaRegenPaused = false; // 攻击期间暂停恢复
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Actor Attributes")
 	FORCEINLINE void AddGold(int32 Amount) { Gold += Amount; }
@@ -52,4 +71,14 @@ public:
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 
 	FORCEINLINE bool IsAlive() const { return CurrentHealth > 0.f; }
+
+	FORCEINLINE float GetStaminaPercent() const { return CurrentStamina / MaxStamina; }
+	FORCEINLINE float GetCurrentStamina() const { return CurrentStamina; }
+	FORCEINLINE float GetMaxStamina() const { return MaxStamina; }
+
+	void UseStamina(float Amount);
+	void ResetStaminaRegenCooldown();
+	void PauseStaminaRegen();
+	void ResumeStaminaRegen();
+	FORCEINLINE bool CheckStamina(float RequiredAmount) const { return CurrentStamina >= RequiredAmount; }
 };

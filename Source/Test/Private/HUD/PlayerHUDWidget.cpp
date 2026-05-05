@@ -14,12 +14,23 @@ void UPlayerHUDWidget::SetHealthPercent(float Percent)
 	}
 }
 
+void UPlayerHUDWidget::SetStaminaPercent(float Percent)
+{
+	if (PB_Stamina)
+	{
+		PB_Stamina->SetPercent(Percent);
+	}
+}
+
 void UPlayerHUDWidget::BindToAttributes(UAttributeComponent* Attributes)
 {
 	if (Attributes)
 	{
 		Attributes->OnHealthChanged.AddDynamic(this, &UPlayerHUDWidget::SetHealthPercent);
 		SetHealthPercent(Attributes->GetHealthPercent());
+
+		Attributes->OnStaminaChanged.AddDynamic(this, &UPlayerHUDWidget::SetStaminaPercent);
+		SetStaminaPercent(Attributes->GetStaminaPercent());
 	}
 }
 
