@@ -77,7 +77,7 @@ void AMyCharacter::Attack()
 
 void AMyCharacter::Jump()
 {
-	if (Attributes && Attributes->CheckStamina(10.f))
+	if (CanJump() && Attributes && Attributes->CheckStamina(10.f))
 	{
 		Attributes->UseStamina(10.f);
 		Super::Jump();
@@ -134,7 +134,7 @@ bool AMyCharacter::CanAttack() const
 
 void AMyCharacter::Equip()
 {
-	if (OverLapItem && OverLapItem->Implements<UPickupInterface>() && WeaponState == EWeaponState::ECS_Unequipped)
+	if (OverLapItem && OverLapItem->Implements<UPickupInterface>() && !OverLapItem->GetOwner() && WeaponState == EWeaponState::ECS_Unequipped)
 	{
 		IPickupInterface::Execute_OnPickup(OverLapItem, this);
 
