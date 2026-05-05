@@ -31,6 +31,11 @@ void AMyCharacter::BeginPlay()
 	Super::BeginPlay();
 	Tags.Add(FName("Player"));
 
+	if (Attributes)
+	{
+		Attributes->OnExhausted.AddDynamic(this, &AMyCharacter::HandleExhausted);
+	}
+
 	// 玩家 HUD
 	if (PlayerHUDClass)
 	{
@@ -58,6 +63,12 @@ void AMyCharacter::Tick(float DeltaTime)
 			FString::Printf(TEXT("HP: %.1f / %.1f"), Attributes->GetCurrentHealth(), Attributes->GetMaxHealth()));
 		GEngine->AddOnScreenDebugMessage(3, 0.f, FColor::Green,
 			FString::Printf(TEXT("SP: %.1f / %.1f"), Attributes->GetCurrentStamina(), Attributes->GetMaxStamina()));
+
+		static const TCHAR* ActionStateNames[] = {
+			TEXT("UnOccupied"), TEXT("Attacking"), TEXT("Arming"), TEXT("Stunning"), TEXT("Exhausted"), TEXT("Dead")
+		};
+		GEngine->AddOnScreenDebugMessage(4, 0.f, FColor::Yellow,
+			FString::Printf(TEXT("State: %s"), ActionStateNames[static_cast<uint8>(ActionState)]));
 	}
 }
 
@@ -77,7 +88,7 @@ void AMyCharacter::Attack()
 
 void AMyCharacter::Jump()
 {
-	if (CanJump() && Attributes && Attributes->CheckStamina(10.f))
+	if (CanJump() && Attributes && Attributes->CheckStamina(10.f) && ActionState != EActionState::EAS_Exhausted)
 	{
 		Attributes->UseStamina(10.f);
 		Super::Jump();
@@ -111,6 +122,20 @@ void AMyCharacter::Die()
 		AnimInstance->Montage_Stop(0.1f);
 		AnimInstance->Montage_Play(DeathMontage);
 	}
+}
+
+void AMyCharacter::HandleExhausted()
+{
+	ActionState = EActionState::EAS_Exhausted;
+	GetWorldTimerManager().SetTimer(ExhaustionTimerHandle, this,
+		&AMyCharacter::RecoverFromExhaustion, 5.f, false);
+}
+
+void AMyCharacter::RecoverFromExhaustion()
+{
+	ActionState = EActionState::EAS_UnOccupied;
+	// 恢复少量体力，让 bStaminaJustDepleted 门卫重置，避免"零体力永久奔跑"漏洞
+	Attributes->AddStamina(1.f);
 }
 
 float AMyCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
@@ -194,8 +219,8 @@ void AMyCharacter::UpdateMovementSpeed()
 	FVector Velocity = GetVelocity();
 	Velocity.Z = 0.f;
 
-	// 奔跑每帧扣耐力
-	if (bIsSprinting && ActionState == EActionState::EAS_UnOccupied && !Velocity.IsNearlyZero())
+	// 奔跑每帧扣耐力（仅地面）
+	if (bIsSprinting && ActionState == EActionState::EAS_UnOccupied && !GetCharacterMovement()->IsFalling() && !Velocity.IsNearlyZero())
 	{
 		FVector Forward = GetActorForwardVector();
 		Forward.Z = 0.f;

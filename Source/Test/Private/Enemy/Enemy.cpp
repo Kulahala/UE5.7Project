@@ -61,6 +61,37 @@ AEnemy::AEnemy()
 	AIPerceptionComp->SetDominantSense(SightConfig->GetSenseImplementation());
 }
 
+void AEnemy::SpawnPointInit()
+{
+	// 出生点（将Z轴坐标下移到胶囊体底部，防止悬空导致后续寻路失败）
+	FVector SpawnLocation = GetActorLocation();
+	if (GetCapsuleComponent())
+	{
+		SpawnLocation.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	}
+	// 如果未设定巡逻点数组，则在出生点生成一个临时的巡逻点
+	SpawnPoint = GetWorld()->SpawnActor<ATargetPoint>(ATargetPoint::StaticClass(), SpawnLocation, GetActorRotation());
+	if (SpawnPoint)
+	{
+		PatrolTargets.Add(SpawnPoint);
+		if (!PatrolTarget)
+		{
+			PatrolTarget = SpawnPoint;
+		}
+	}
+}
+
+void AEnemy::WeaponInit()
+{
+	// 武器
+	if (WeaponClass)
+	{
+		AWeapon* Weapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass);
+		Weapon->Equip(GetMesh(), FName("RightHandSocket"), this, this);
+		EquippedWeapon = Weapon;
+	}
+}
+
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
@@ -84,32 +115,11 @@ void AEnemy::BeginPlay()
 		AIPerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &AEnemy::TargetPerceptionUpdated);
 	}
 
-	// 出生点（将Z轴坐标下移到胶囊体底部，防止悬空导致后续寻路失败）
-	FVector SpawnLocation = GetActorLocation();
-	if (GetCapsuleComponent())
-	{
-		SpawnLocation.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	}
-	// 如果未设定巡逻点数组，则在出生点生成一个临时的巡逻点
-	SpawnPoint = GetWorld()->SpawnActor<ATargetPoint>(ATargetPoint::StaticClass(), SpawnLocation, GetActorRotation());
-	if (SpawnPoint)
-	{
-		PatrolTargets.Add(SpawnPoint);
-		if (!PatrolTarget)
-		{
-			PatrolTarget = SpawnPoint;
-		}
-	}
+	SpawnPointInit();
 
 	EnemyController = Cast<AAIController>(GetController());
 
-	// 武器
-	if (WeaponClass)
-	{
-		AWeapon* Weapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass);
-		Weapon->Equip(GetMesh(), FName("RightHandSocket"), this, this);
-		EquippedWeapon = Weapon;
-	}
+	WeaponInit();
 }
 
 void AEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)

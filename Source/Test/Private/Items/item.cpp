@@ -89,7 +89,12 @@ void Aitem::SphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Othe
 	AMyCharacter* SlashCharacter = Cast<AMyCharacter>(OtherActor);
 	if (SlashCharacter)
 	{
-		SlashCharacter->SetEquippedItem(this);
+		// 无主武器优先：当前 OverLapItem 有主人而自己没有时，覆盖
+		Aitem* Current = SlashCharacter->GetEquippedItem();
+		if (!Current || !GetOwner() || Current->GetOwner())
+		{
+			SlashCharacter->SetEquippedItem(this);
+		}
 	}
 }
 

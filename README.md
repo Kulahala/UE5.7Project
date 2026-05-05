@@ -56,6 +56,72 @@ The project follows a decoupled, component-based architecture to ensure scalabil
    - **破碎系统**：集成 Chaos 物理几何体集（Geometry Collections），实现环境的真实破坏效果。
    - **程序化生成 (PCG)**：利用 PCG 图表动态生成竞技场环境与地物布局。
 
+### 🔄 主角状态机流转图 / Player State Machine Flow
+
+**动作状态 (`EActionState`)**
+
+| 状态 | 说明 |
+|------|------|
+| `EAS_UnOccupied` | 正常态，可移动/攻击/跳跃/奔跑 |
+| `EAS_Attacking` | 攻击蒙太奇播放中，锁定攻击输入 |
+| `EAS_Arming` | 拔刀/收刀蒙太奇播放中 |
+| `EAS_Stunning` | 受击硬直，短暂锁定 |
+| `EAS_Exhausted` | 体力耗尽，只能行走，5秒后恢复 |
+| `EAC_Dead` | 死亡，关闭碰撞与移动 |
+
+```mermaid
+stateDiagram-v2
+    [*] --> UnOccupied
+
+    UnOccupied --> Attacking : 攻击 (消耗15体力)
+    UnOccupied --> Arming : 拔刀/收刀
+    UnOccupied --> Stunning : 受击
+    UnOccupied --> Exhausted : 体力归零
+
+    Attacking --> UnOccupied : 蒙太奇结束
+    Arming --> UnOccupied : 蒙太奇结束
+    Stunning --> UnOccupied : 硬直结束
+    Exhausted --> UnOccupied : 5秒恢复 (+1体力)
+
+    UnOccupied --> Dead : 生命值归零
+    Attacking --> Dead : 生命值归零
+    Stunning --> Dead : 生命值归零
+    Exhausted --> Dead : 生命值归零
+```
+
+**体力系统 (`Stamina`)**
+
+```mermaid
+flowchart LR
+    A[奔跑/攻击/跳跃] -->|消耗体力| B[UseStamina]
+    B --> C{体力 <= 0?}
+    C -->|否| D[正常继续]
+    C -->|是| E[触发 OnExhausted]
+    E --> F[ActionState = Exhausted]
+    F --> G[5秒恢复计时器]
+    G --> H[AddStamina 1点]
+    H --> I[ActionState = UnOccupied]
+
+    J[体力 < 上限] -->|Tick 自然恢复| K[StaminaRegenRate]
+    L[消耗后] -->|冷却倒计时| M[StaminaRegenDelay]
+    M --> K
+```
+
+**武器装备状态 (`EWeaponState` + `EArmWeaponState`)**
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unequipped
+
+    Unequipped --> OneHandEquipped : 拾取武器 (E键)
+    OneHandEquipped --> Unequipped : (未来: 丢弃)
+
+    state OneHandEquipped {
+        Arming --> Disarming : 拔刀蒙太奇结束
+        Disarming --> Arming : 收刀蒙太奇结束
+    }
+```
+
 ### 🧠 核心技术与算法亮点
 
 - **精确碰撞扫掠 (Weapon System)**

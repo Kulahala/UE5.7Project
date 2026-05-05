@@ -30,6 +30,9 @@ public:
 	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
 	                         class AController* EventInstigator, AActor* DamageCauser) override;
 	void Die(); // 死亡演出
+	UFUNCTION()
+	void HandleExhausted(); // 体力耗尽回调
+	void RecoverFromExhaustion(); // 2秒后恢复
 
 	/* 装备 */
 	virtual void Equip() override;
@@ -54,8 +57,11 @@ protected:
 	UAnimMontage* ArmMontage; // 拔刀/收刀蒙太奇
 
 	/* 动作状态 */
-	UPROPERTY(BlueprintReadOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly, Category = "State")
 	EActionState ActionState = EActionState::EAS_UnOccupied;
+
+	UPROPERTY(VisibleAnywhere,BlueprintReadWrite ,Category = "State")
+	float ExhaustedTime = 5.f; // 体力耗尽后恢复时间
 
 private:
 	/* 相机组件 */
@@ -84,6 +90,8 @@ private:
 
 	UPROPERTY(VisibleInstanceOnly, Category = "State", meta = (AllowPrivateAccess = "true"))
 	bool bIsArming = false; // 是否正在播放切刀/拔刀蒙太奇（短暂状态）
+
+	FTimerHandle ExhaustionTimerHandle;
 
 public:
 	FORCEINLINE void SetEquippedItem(Aitem* Item) { OverLapItem = Item; }

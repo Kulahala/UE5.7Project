@@ -8,6 +8,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChangedSignature, float, HealthPercent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStaminaChangedSignature, float, StaminaPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnExhaustedSignature);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class TEST_API UAttributeComponent : public UActorComponent
@@ -22,6 +23,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnStaminaChangedSignature OnStaminaChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnExhaustedSignature OnExhausted;
 
 	void ReceiveDamage(float Damage);
 
@@ -55,6 +59,7 @@ private:
 
 	float StaminaRegenCooldown = 0.f; // 当前剩余冷却
 	bool bStaminaRegenPaused = false; // 攻击期间暂停恢复
+	bool bStaminaJustDepleted = false; // 防止重复广播耗尽
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Actor Attributes")
@@ -77,6 +82,7 @@ public:
 	FORCEINLINE float GetMaxStamina() const { return MaxStamina; }
 
 	void UseStamina(float Amount);
+	void AddStamina(float Amount);
 	void ResetStaminaRegenCooldown();
 	void PauseStaminaRegen();
 	void ResumeStaminaRegen();

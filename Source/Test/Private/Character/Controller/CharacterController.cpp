@@ -48,7 +48,8 @@ void ACharacterController::Input_Move(const FInputActionValue& Value)
 	AMyCharacter* MyCharacter = Cast<AMyCharacter>(GetPawn());
 	if (!MyCharacter) return;
 
-	if (MyCharacter->GetActionState() != EActionState::EAS_UnOccupied) return;
+	EActionState State = MyCharacter->GetActionState();
+	if (State != EActionState::EAS_UnOccupied && State != EActionState::EAS_Exhausted) return;
 	if (MyCharacter->GetCharacterMovement()->IsFalling()) return;
 
 	FVector2D MovementVector = Value.Get<FVector2D>();

@@ -27,6 +27,10 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/* 初始化 */
+	void SpawnPointInit();
+	void WeaponInit();
+
 	/* 受击/死亡 */
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* HitInstigator) override;
 	virtual float TakeDamage(float DamageAmount, const struct FDamageEvent& DamageEvent,
