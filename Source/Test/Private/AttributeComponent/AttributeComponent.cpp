@@ -42,13 +42,14 @@ void UAttributeComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
 void UAttributeComponent::UseStamina(float Amount)
 {
-	CurrentStamina = FMath::Clamp(CurrentStamina - Amount, 0.f, MaxStamina);
+	CurrentStamina = FMath::Clamp(CurrentStamina - Amount, -Amount, MaxStamina);
 
 	if (CurrentStamina <= 0.f && !bStaminaJustDepleted)
 	{
 		bStaminaJustDepleted = true;
 		OnExhausted.Broadcast();
 	}
+	CurrentStamina = FMath::Max(CurrentStamina, 0.f);
 	if (CurrentStamina > 0.f) bStaminaJustDepleted = false;
 
 	OnStaminaChanged.Broadcast(GetStaminaPercent());
@@ -59,6 +60,11 @@ void UAttributeComponent::AddStamina(float Amount)
 	CurrentStamina = FMath::Clamp(CurrentStamina + Amount, 0.f, MaxStamina);
 	if (CurrentStamina > 0.f) bStaminaJustDepleted = false;
 	OnStaminaChanged.Broadcast(GetStaminaPercent());
+}
+
+void UAttributeComponent::ResetExhaustionFlag()
+{
+	bStaminaJustDepleted = false;
 }
 
 void UAttributeComponent::ResetStaminaRegenCooldown()

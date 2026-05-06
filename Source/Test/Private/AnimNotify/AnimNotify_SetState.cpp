@@ -58,7 +58,10 @@ void UAnimNotify_CharacterHitReactEnd::Notify(USkeletalMeshComponent* MeshComp, 
 	{
 		if (AMyCharacter* MyCharacter = Cast<AMyCharacter>(MeshComp->GetOwner()))
 		{
-			MyCharacter->SetActionState(EActionState::EAS_UnOccupied);
+			if (MyCharacter->GetActionState() == EActionState::EAS_Stunning)
+			{
+				MyCharacter->SetActionState(EActionState::EAS_UnOccupied);
+			}
 		}
 	}
 }

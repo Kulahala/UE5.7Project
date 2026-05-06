@@ -86,5 +86,6 @@ public:
 	void ResetStaminaRegenCooldown();
 	void PauseStaminaRegen();
 	void ResumeStaminaRegen();
+	void ResetExhaustionFlag();
 	FORCEINLINE bool CheckStamina(float RequiredAmount) const { return CurrentStamina >= RequiredAmount; }
 };

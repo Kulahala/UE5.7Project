@@ -88,7 +88,7 @@ void AMyCharacter::Attack()
 
 void AMyCharacter::Jump()
 {
-	if (CanJump() && Attributes && Attributes->CheckStamina(10.f) && ActionState != EActionState::EAS_Exhausted)
+	if (CanJump() && ActionState != EActionState::EAS_Exhausted)
 	{
 		Attributes->UseStamina(10.f);
 		Super::Jump();
@@ -134,8 +134,11 @@ void AMyCharacter::HandleExhausted()
 
 void AMyCharacter::RecoverFromExhaustion()
 {
+	if (ActionState != EActionState::EAS_Exhausted) return;
+
 	ActionState = EActionState::EAS_UnOccupied;
-	// 恢复少量体力，让 bStaminaJustDepleted 门卫重置，避免"零体力永久奔跑"漏洞
+	// 体力可能因"最后一击"过扣为负，先重置门卫再加，避免 bStaminaJustDepleted 卡死
+	Attributes->ResetExhaustionFlag();
 	Attributes->AddStamina(1.f);
 }
 
@@ -153,7 +156,7 @@ float AMyCharacter::TakeDamage(float DamageAmount, const struct FDamageEvent& Da
 bool AMyCharacter::CanAttack() const
 {
 	return ActionState == EActionState::EAS_UnOccupied && WeaponState != EWeaponState::ECS_Unequipped &&
-		ArmWeaponState == EArmWeaponState::AWS_Arming && Attributes->CheckStamina(15.f);
+		ArmWeaponState == EArmWeaponState::AWS_Arming;
 }
 
 // ==================== 装备 ====================
